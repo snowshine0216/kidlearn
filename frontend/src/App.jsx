@@ -30,6 +30,8 @@ export default function App() {
 
   const { deck, streak, addCard, deleteCard, reportCard, touchStreak, updateCardMastery, patchCard } = useDeck(showToast);
 
+  const dueCount = deck.filter(c => c.nextReviewAt != null && c.nextReviewAt <= Date.now()).length;
+
   function handleLangToggle() {
     const next = lang === 'zh' ? 'en' : 'zh';
     saveLang(next);
@@ -126,7 +128,7 @@ export default function App() {
               </>
             )}
 
-            <StatsRow t={t} count={deck.length} />
+            <StatsRow t={t} count={deck.length} dueCount={dueCount} />
           </div>
         </main>
 

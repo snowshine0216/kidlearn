@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult } from '../lib/quizLogic';
 import { getQuizHint } from '../lib/quizHintApi';
-import { speakCard, speak } from '../lib/speech';
+import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
 
 const EN_MODES = ['pronunciation', 'fill-blank', 'word-meaning'];
@@ -120,7 +120,35 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
   const [showHint, setShowHint] = useState(false);
   const [chosen, setChosen] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [round, setRound] = useState(1);
+  const [showReminder, setShowReminder] = useState(false);
+  // null = unanswered; true = 我会了 clicked; false = 还不会 clicked
+  const [selfReportPending, setSelfReportPending] = useState(null);
   const theme = getTheme(card.color_theme ?? 'purple');
+
+  // Countdown timer — resets naturally on each new question via key=currentIdx remount
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev > 1) return prev - 1;
+        // Time expired for this round — speak the word as an audio reminder
+        speakCardFull(card);
+        setRound(r => {
+          if (r >= 3) {
+            // 3 rounds exhausted — auto-advance as wrong
+            setTimeout(() => onAnswer(false, card.id), 800);
+            return r;
+          }
+          setShowReminder(true);
+          setTimeout(() => setShowReminder(false), 2500);
+          return r + 1;
+        });
+        return 30; // reset timer for next round
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [card.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleChoice(c) {
     if (chosen) return;
@@ -129,16 +157,75 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading }) {
     setTimeout(() => onAnswer(correct, c.id), 600);
   }
 
+  // Self-report: show inline animation, speak audio, then advance after delay
   function handleSelfReport(correct) {
-    onAnswer(correct, card.id);
+    if (selfReportPending !== null) return;
+    setSelfReportPending(correct);
+    speakCardFull(card);
+    setTimeout(() => onAnswer(correct, card.id), correct ? 1600 : 2400);
   }
 
-  // Pronunciation: tap 🔊 to hear
-  useEffect(() => {
-    if (type === 'pronunciation') speakCard(card.word, card.pinyin);
-  }, [card.id, type]);
-
   const isSelfReport = type === 'pronunciation' || type === 'reading';
+
+  // ── Card display area: normal | praise overlay | memory overlay ──────────
+  const cardDisplay = selfReportPending === true ? (
+    /* Correct — celebration burst */
+    <div
+      className="quiz-praise-pop rounded-3xl p-6 text-center flex flex-col items-center gap-3"
+      style={{ background: 'var(--color-accent-light)' }}
+    >
+      <div className="relative inline-block">
+        <span className="text-6xl">{card.emoji}</span>
+        <span className="absolute -top-4 -right-2 text-2xl quiz-star-1">⭐</span>
+        <span className="absolute -top-6 left-1 text-xl quiz-star-2">✨</span>
+        <span className="absolute -top-3 -left-5 text-2xl quiz-star-3">🌟</span>
+      </div>
+      <p className="text-3xl font-bold" style={{ color: 'var(--color-accent)' }}>
+        {t.quizSelfPraise}
+      </p>
+    </div>
+  ) : selfReportPending === false ? (
+    /* Wrong — memory helper revealed */
+    <div
+      className="quiz-memory-reveal rounded-3xl p-5 text-center"
+      style={{ background: theme.bg }}
+    >
+      <p className="text-sm font-bold mb-3" style={{ color: 'var(--color-muted)' }}>
+        {t.quizRememberIt}
+      </p>
+      {card.chinese && (
+        <p className="cjk-font font-bold" style={{ fontSize: 52, color: theme.accent, lineHeight: 1.2 }}>
+          {card.chinese}
+        </p>
+      )}
+      {card.pinyin && (
+        <p className="card-pinyin mt-1" style={{ color: 'var(--color-muted)' }}>{card.pinyin}</p>
+      )}
+      <p className="font-bold mt-1 card-word" style={{ color: theme.accent }}>{card.word}</p>
+      {card.mnemonic && (
+        <p className="text-sm mt-3 px-3 py-2 rounded-xl" style={{ background: 'var(--color-warm-light)', color: 'var(--color-text)' }}>
+          💡 {card.mnemonic}
+        </p>
+      )}
+    </div>
+  ) : (
+    /* Normal card display */
+    <div className="rounded-3xl p-6 text-center" style={{ background: theme.bg }}>
+      <div className="card-emoji">{card.emoji}</div>
+      {type === 'fill-blank' ? (
+        <p className="text-2xl font-bold mt-2" style={{ color: 'var(--color-text)' }}>
+          {sentenceWithBlank}
+        </p>
+      ) : type === 'word-meaning' ? (
+        <p className="card-word mt-2" style={{ color: theme.accent }}>{card.word}</p>
+      ) : type === 'reading' ? (
+        <p className="card-word mt-2 cjk-font" style={{ color: theme.accent }}>{card.chinese}</p>
+      ) : (
+        /* pronunciation — silent; child tries to say it first */
+        <p className="card-word mt-2" style={{ color: theme.accent }}>{card.word}</p>
+      )}
+    </div>
+  );
 
   return (
     <div className="quiz-fade-in flex flex-col gap-4 p-4 max-w-sm mx-auto w-full">
@@ -147,69 +234,71 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading }) {
         {t.quizPrompt[type === 'fill-blank' ? 'fillBlank' : type === 'word-meaning' ? 'wordMeaning' : type]}
       </p>
 
-      {/* Card display */}
-      <div
-        className="rounded-3xl p-6 text-center"
-        style={{ background: theme.bg }}
-      >
-        <div className="card-emoji">{card.emoji}</div>
-        {type === 'fill-blank' ? (
-          <p className="text-2xl font-bold mt-2" style={{ color: 'var(--color-text)' }}>
-            {sentenceWithBlank}
-          </p>
-        ) : type === 'word-meaning' ? (
-          <p className="card-word mt-2" style={{ color: theme.accent }}>{card.word}</p>
-        ) : type === 'reading' ? (
-          <p className="card-word mt-2 cjk-font" style={{ color: theme.accent }}>{card.chinese}</p>
-        ) : (
-          /* pronunciation */
-          <p className="card-word mt-2" style={{ color: theme.accent }}>{card.word}</p>
-        )}
-      </div>
+      {cardDisplay}
+
+      {/* Countdown — hidden while animation is playing */}
+      {selfReportPending === null && (
+        <div className="flex items-center justify-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-muted)' }}>
+          <span>⏱️ {timeLeft}s</span>
+          {showReminder && (
+            <span style={{ color: 'var(--color-coral)' }}>{t.quizCountdownReminder}</span>
+          )}
+        </div>
+      )}
 
       {/* Hint toggle */}
-      <button
-        onClick={() => setShowHint(h => !h)}
-        aria-expanded={showHint}
-        className="text-sm font-semibold self-center"
-        style={{ color: 'var(--color-accent)' }}
-      >
-        {t.quizHintBtn}
-      </button>
-      {showHint && (
-        <p className="text-sm text-center px-4 py-2 rounded-xl" style={{ background: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
-          {hintLoading ? '...' : hint}
-        </p>
+      {selfReportPending === null && (
+        <>
+          <button
+            onClick={() => setShowHint(h => !h)}
+            aria-expanded={showHint}
+            className="text-sm font-semibold self-center"
+            style={{ color: 'var(--color-accent)' }}
+          >
+            {t.quizHintBtn}
+          </button>
+          {showHint && (
+            <p className="text-sm text-center px-4 py-2 rounded-xl" style={{ background: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
+              {hintLoading ? '...' : hint}
+            </p>
+          )}
+        </>
       )}
 
       {/* Choices or self-report */}
       {isSelfReport ? (
         <div className="flex flex-col gap-3">
-          {type === 'pronunciation' && (
-            <button
-              onClick={() => speakCard(card.word, card.pinyin)}
-              className="self-center text-2xl"
-              aria-label="Play pronunciation"
-            >🔊</button>
-          )}
-          {type === 'reading' && (
+          {/* 🔊 button for reading mode — on-demand only */}
+          {type === 'reading' && selfReportPending === null && (
             <button
               onClick={() => speak(card.chinese, 'zh')}
               className="self-center text-2xl"
               aria-label="Play pronunciation"
             >🔊</button>
           )}
+          {/* pronunciation: NO 🔊 before answering — silence lets child try first */}
           <button
             onClick={() => handleSelfReport(true)}
+            disabled={selfReportPending !== null}
             className="quiz-choice-btn"
-            style={{ border: '3px solid var(--color-accent)' }}
+            style={{
+              border: '3px solid var(--color-accent)',
+              background: selfReportPending === true ? 'var(--color-accent)' : undefined,
+              color: selfReportPending === true ? 'white' : undefined,
+              transition: 'all 0.25s ease',
+            }}
           >
             {type === 'pronunciation' ? t.quizSaidIt : t.quizKnowIt}
           </button>
           <button
             onClick={() => handleSelfReport(false)}
+            disabled={selfReportPending !== null}
             className="quiz-choice-btn"
-            style={{ border: '3px solid #e0e0e0' }}
+            style={{
+              border: `3px solid ${selfReportPending === false ? 'var(--color-coral)' : '#e0e0e0'}`,
+              background: selfReportPending === false ? 'var(--color-coral-light)' : undefined,
+              transition: 'all 0.25s ease',
+            }}
           >
             {type === 'pronunciation' ? t.quizSkip : t.quizDontKnow}
           </button>
@@ -303,9 +392,9 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast 
             {card.mascot_message && (
               <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>{card.mascot_message}</p>
             )}
-            {lang === 'zh' || question.type === 'reading' ? (
+            {lang === 'zh' || question.type === 'reading' || question.type === 'pronunciation' ? (
               <button
-                onClick={() => speak(card.chinese, 'zh')}
+                onClick={() => speakCardFull(card)}
                 className="mt-2 text-xl"
                 aria-label="Play pronunciation"
               >🔊</button>

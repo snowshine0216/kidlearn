@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { getTheme } from '../lib/colorThemes';
-import { speakCard } from '../lib/speech';
+import { speakCardFull } from '../lib/speech';
 
 function safe(html) {
   if (!html) return '';
@@ -17,7 +17,7 @@ const SUBJECT_BADGES = {
 export default function FlashCard({ t, card, isLoading, subject, onReport }) {
   useEffect(() => {
     if (card && !isLoading) {
-      speakCard(card.word, card.pinyin);
+      speakCardFull(card);
     }
   }, [card?.id]);
 
@@ -46,9 +46,9 @@ export default function FlashCard({ t, card, isLoading, subject, onReport }) {
       className="flashcard card-enter relative rounded-3xl p-6 overflow-hidden"
       style={{ backgroundColor: theme.bg, boxShadow: '0 4px 24px rgba(127, 119, 221, 0.10)' }}
     >
-      {/* Decorative circles */}
-      <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-20" style={{ backgroundColor: theme.accent }} />
-      <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full opacity-15" style={{ backgroundColor: theme.accent }} />
+      {/* Decorative circles — pointer-events-none prevents touch interception over buttons */}
+      <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-20 pointer-events-none" style={{ backgroundColor: theme.accent }} />
+      <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full opacity-15 pointer-events-none" style={{ backgroundColor: theme.accent }} />
 
       {/* Subject tag */}
       <div className="relative flex mb-4">

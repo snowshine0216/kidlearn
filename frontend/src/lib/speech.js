@@ -56,6 +56,40 @@ export async function speakCard(word, pinyin) {
   }
 }
 
+/**
+ * Speak a card in the correct pedagogical order based on subject.
+ *
+ * Chinese cards (e.g. 苹果 / píng guǒ):
+ *   1. Speak 汉字 whole: 苹果
+ *   2. 900 ms pause
+ *   3. Speak full pinyin: píng guǒ
+ *   4. 700 ms pause
+ *   5. Speak each syllable individually: píng … guǒ (650 ms apart)
+ *
+ * English/Math cards:
+ *   1. Speak English word
+ *   2. 1400 ms pause
+ *   3. Speak full pinyin (if present)
+ */
+export async function speakCardFull(card) {
+  if (card.subject === 'chinese' && card.chinese) {
+    await speak(card.chinese, 'zh');
+    if (card.pinyin) {
+      const syllables = card.pinyin.trim().split(/\s+/).filter(Boolean);
+      let offset = 900;
+      setTimeout(() => speak(card.pinyin, 'zh'), offset);   // whole pinyin
+      offset += 700;
+      syllables.forEach(syl => {
+        setTimeout(() => speak(syl, 'zh'), offset);          // each syllable
+        offset += 650;
+      });
+    }
+  } else {
+    await speak(card.word, 'en');
+    if (card.pinyin) setTimeout(() => speak(card.pinyin, 'zh'), 1400);
+  }
+}
+
 function webSpeechSpeak(text, bcp47) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   const utterance = new SpeechSynthesisUtterance(text);

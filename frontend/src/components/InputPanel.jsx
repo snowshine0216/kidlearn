@@ -56,7 +56,7 @@ export default function InputPanel({ t, onCardGenerated, onLoading, recentCards,
         {collapsed ? '›' : '‹'}
       </button>
 
-      <div className="panel-content flex flex-col gap-4 p-5 transition-opacity duration-300">
+      <div className="panel-content flex-1 flex flex-col gap-4 p-5 transition-opacity duration-300 min-h-0">
         {/* Subject selector */}
         <div>
           <p className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
@@ -131,8 +131,8 @@ export default function InputPanel({ t, onCardGenerated, onLoading, recentCards,
             <p className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
               {t.recentLabel}
             </p>
-            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-              {recentCards.slice(0, 10).map((c) => (
+            <div className="flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto">
+              {recentCards.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => onLoadRecent?.(c)}

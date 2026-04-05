@@ -8,6 +8,7 @@ import {
   buildFillBlankSentence,
   buildHint,
   applyMasteryResult,
+  computeNextReviewAt,
   computeSessionScore,
 } from '../quizLogic';
 
@@ -242,10 +243,10 @@ describe('applyMasteryResult', () => {
     expect(result.mastery).toBe(3);
   });
 
-  it('does not change mastery on wrong answer', () => {
+  it('decrements mastery by 1 on wrong answer', () => {
     const card = makeCard({ mastery: 2, reviewCount: 3 });
     const result = applyMasteryResult(card, false);
-    expect(result.mastery).toBe(2);
+    expect(result.mastery).toBe(1);
   });
 
   it('caps mastery at 5', () => {
@@ -281,11 +282,33 @@ describe('applyMasteryResult', () => {
     expect(typeof result.mastery).toBe('number');
   });
 
-  it('handles null mastery → result.mastery stays 0 on wrong', () => {
+  it('handles null mastery → result.mastery stays 0 on wrong (clamped)', () => {
     const card = makeCard({ mastery: null });
     const result = applyMasteryResult(card, false);
     expect(result.mastery).toBe(0);
     expect(typeof result.mastery).toBe('number');
+  });
+
+  it('sets nextReviewAt to a future timestamp on correct', () => {
+    const now = Date.now();
+    const card = makeCard({ mastery: 1 });
+    const result = applyMasteryResult(card, true);
+    expect(typeof result.nextReviewAt).toBe('number');
+    expect(result.nextReviewAt).toBeGreaterThan(now);
+  });
+
+  it('sets nextReviewAt to a future timestamp on wrong', () => {
+    const now = Date.now();
+    const card = makeCard({ mastery: 3 });
+    const result = applyMasteryResult(card, false);
+    expect(typeof result.nextReviewAt).toBe('number');
+    expect(result.nextReviewAt).toBeGreaterThan(now);
+  });
+
+  it('does not mutate nextReviewAt on original card', () => {
+    const card = makeCard({ mastery: 2, nextReviewAt: null });
+    applyMasteryResult(card, true);
+    expect(card.nextReviewAt).toBeNull();
   });
 
   it('handles null reviewCount → result.reviewCount is 1', () => {
@@ -329,6 +352,93 @@ describe('buildQuestions', () => {
       expect(q).toHaveProperty('type');
       expect(q).toHaveProperty('hint');
     });
+  });
+});
+
+// ─── computeNextReviewAt ─────────────────────────────────────────────────────
+
+describe('computeNextReviewAt', () => {
+  const DAY = 86400000;
+  const fixedNow = 1000000000000;
+
+  it('returns 1 day from now for null mastery + wrong (new mastery 0)', () => {
+    const result = computeNextReviewAt(null, false, fixedNow);
+    expect(result).toBe(fixedNow + 1 * DAY);
+  });
+
+  it('returns 1 day from now for null mastery + correct (new mastery 1)', () => {
+    const result = computeNextReviewAt(null, true, fixedNow);
+    expect(result).toBe(fixedNow + 1 * DAY);
+  });
+
+  it('returns 3 days for mastery 1 + correct (new mastery 2)', () => {
+    const result = computeNextReviewAt(1, true, fixedNow);
+    expect(result).toBe(fixedNow + 3 * DAY);
+  });
+
+  it('returns 7 days for mastery 2 + correct (new mastery 3)', () => {
+    const result = computeNextReviewAt(2, true, fixedNow);
+    expect(result).toBe(fixedNow + 7 * DAY);
+  });
+
+  it('returns 14 days for mastery 3 + correct (new mastery 4)', () => {
+    const result = computeNextReviewAt(3, true, fixedNow);
+    expect(result).toBe(fixedNow + 14 * DAY);
+  });
+
+  it('returns 30 days for mastery 4 + correct (new mastery 5)', () => {
+    const result = computeNextReviewAt(4, true, fixedNow);
+    expect(result).toBe(fixedNow + 30 * DAY);
+  });
+
+  it('caps mastery at 5 (30 days) on correct', () => {
+    const result = computeNextReviewAt(5, true, fixedNow);
+    expect(result).toBe(fixedNow + 30 * DAY);
+  });
+
+  it('decrements mastery on wrong: mastery 3 wrong → new mastery 2 → 3 days', () => {
+    const result = computeNextReviewAt(3, false, fixedNow);
+    expect(result).toBe(fixedNow + 3 * DAY);
+  });
+
+  it('clamps mastery decrement at 0: mastery 0 wrong → still 1 day', () => {
+    const result = computeNextReviewAt(0, false, fixedNow);
+    expect(result).toBe(fixedNow + 1 * DAY);
+  });
+
+  it('uses Date.now() when now is not provided (result is in the future)', () => {
+    const before = Date.now();
+    const result = computeNextReviewAt(0, true);
+    expect(result).toBeGreaterThanOrEqual(before + 86400000);
+  });
+});
+
+// ─── selectQuizCards (overdue priority) ──────────────────────────────────────
+
+describe('selectQuizCards — overdue priority', () => {
+  it('surfaces overdue card before learning card', () => {
+    const overdueCard = makeCard({ id: 'overdue', mastery: 2, nextReviewAt: Date.now() - 1000 });
+    const learningCard = makeCard({ id: 'learning', mastery: 1, nextReviewAt: Date.now() + 99999999 });
+    // No null-mastery cards
+    const deck = [learningCard, overdueCard];
+    const result = selectQuizCards(deck, 'english', 1);
+    expect(result[0].id).toBe('overdue');
+  });
+
+  it('still prefers null-mastery cards over overdue cards', () => {
+    const neverSeen = makeCard({ id: 'never', mastery: null });
+    const overdueCard = makeCard({ id: 'overdue', mastery: 3, nextReviewAt: Date.now() - 1000 });
+    const deck = [overdueCard, neverSeen];
+    const result = selectQuizCards(deck, 'english', 1);
+    expect(result[0].id).toBe('never');
+  });
+
+  it('surfaces overdue before non-overdue learning cards', () => {
+    const overdue = makeCard({ id: 'overdue', mastery: 1, nextReviewAt: Date.now() - 1000 });
+    const learning = makeCard({ id: 'learning', mastery: 2, nextReviewAt: Date.now() + 99999999 });
+    const deck = [learning, overdue];
+    const result = selectQuizCards(deck, 'english', 2);
+    expect(result[0].id).toBe('overdue');
   });
 });
 
