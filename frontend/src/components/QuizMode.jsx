@@ -15,13 +15,17 @@ function QuizLobby({ t, deck, onStart, onClose }) {
   const [subject, setSubject] = useState('english');
   const [count, setCount] = useState(5);
   const [loading, setLoading] = useState(false);
+  const inFlightRef = useRef(false);
 
   const subjectDeck = deck.filter(c => c.subject === subject);
   const canStart = subjectDeck.length >= 5;
 
   async function handleStart() {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
     await onStart({ subject, count });
+    inFlightRef.current = false;
     setLoading(false);
   }
 
@@ -247,10 +251,13 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast 
   const hint = card.quizHints?.[question.type] ?? null;
 
   const mascotCorrect = t.quizMascotCorrect;
-  const mascotWrong = t.quizMascotWrong;
   const mascotEmpathy = t.quizMascotEmpathy;
 
-  const randomPick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  // Stable random picks — computed once on mount so re-renders don't flash different text
+  const [picked] = useState(() => ({
+    correct: mascotCorrect[Math.floor(Math.random() * mascotCorrect.length)],
+    empathy: mascotEmpathy[Math.floor(Math.random() * mascotEmpathy.length)],
+  }));
 
   useEffect(() => {
     if (correct && typeof window !== 'undefined') {
@@ -268,12 +275,12 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast 
           <p className="text-2xl font-bold text-center" style={{ color: 'var(--color-accent)' }}>
             {t.quizCorrectBanner}
           </p>
-          <p className="text-center text-lg mascot-bounce">{randomPick(mascotCorrect)}</p>
+          <p className="text-center text-lg mascot-bounce">{picked.correct}</p>
         </>
       ) : (
         <>
           {/* Empathy first */}
-          <p className="text-center text-lg">{randomPick(mascotEmpathy)}</p>
+          <p className="text-center text-lg">{picked.empathy}</p>
           <p className="text-center font-semibold" style={{ color: 'var(--color-coral)' }}>
             {t.quizWrongBanner(card.word)}
           </p>
@@ -390,6 +397,11 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   const [results, setResults] = useState([]);
   const [lastCorrect, setLastCorrect] = useState(null);
   const [hintLoadingSet, setHintLoadingSet] = useState(new Set());
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const currentQuestion = questions[currentIdx] ?? null;
   const isLast = currentIdx === questions.length - 1;
@@ -429,12 +441,20 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
       });
       if (hint) {
         const newHints = { ...(card.quizHints ?? {}), [type]: hint };
-        onPatchCard(card.id, { quizHints: newHints });
-        if (hint.mnemonic && !card.mnemonic) {
-          onPatchCard(card.id, { mnemonic: hint.mnemonic });
+        // Merge all patch fields into a single call to avoid race between two setDeck updates
+        const patch = { quizHints: newHints };
+        if (hint.mnemonic && !card.mnemonic) patch.mnemonic = hint.mnemonic;
+        onPatchCard(card.id, patch);
+        // Update frozen questions array so QuizFeedback sees new hints without re-selecting from deck
+        if (mountedRef.current) {
+          setQuestions(prev => prev.map(q =>
+            q.card.id === card.id ? { ...q, card: { ...q.card, ...patch, quizHints: newHints } } : q
+          ));
         }
       }
-      setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
+      if (mountedRef.current) {
+        setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
+      }
     }
 
     await Promise.allSettled(eager.map(fetchHintForQuestion));

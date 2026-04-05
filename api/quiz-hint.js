@@ -12,6 +12,25 @@ const MINIMAX_API_URL = 'https://api.minimax.chat/v1/text/chatcompletion_v2';
 const VALID_SUBJECTS = ['english', 'chinese', 'math'];
 const VALID_QUIZ_TYPES = ['pronunciation', 'fill-blank', 'word-meaning', 'reading'];
 
+// Simple in-memory rate limiter: 30 requests per IP per 60-second window.
+// Stored at module level so it persists across requests in the same warm instance.
+// Not distributed — effective for casual abuse, not a hard guarantee.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 30;
+const ipWindows = new Map(); // ip -> { count, windowStart }
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const entry = ipWindows.get(ip);
+  if (!entry || now - entry.windowStart > RATE_WINDOW_MS) {
+    ipWindows.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+  entry.count += 1;
+  if (entry.count > RATE_MAX) return true;
+  return false;
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -29,11 +48,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'MINIMAX_API_KEY not configured on server' });
   }
 
+  // Rate limiting — use X-Forwarded-For (Vercel sets this), fall back to socket address
+  const ip = (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+
   const { word, chinese, pinyin, subject, type, hasMnemonic } = req.body ?? {};
 
   // Input validation
-  if (!word || typeof word !== 'string' || word.length > 50) {
-    return res.status(400).json({ error: 'word is required and must be a string (max 50 chars)' });
+  if (!word || typeof word !== 'string' || word.trim().length === 0 || word.length > 50) {
+    return res.status(400).json({ error: 'word is required and must be a non-empty string (max 50 chars)' });
   }
   if (chinese !== undefined && chinese !== null && (typeof chinese !== 'string' || chinese.length > 100)) {
     return res.status(400).json({ error: 'chinese must be a string (max 100 chars)' });

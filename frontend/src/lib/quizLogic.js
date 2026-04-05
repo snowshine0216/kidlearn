@@ -185,9 +185,11 @@ export function computeSessionScore(results) {
   else if (ratio >= 0.7) stars = 2;
   else if (ratio >= 0.4) stars = 1;
 
+  const seen = new Set();
   const weakCards = results
     .filter(r => !r.correct && r.card)
-    .map(r => r.card);
+    .map(r => r.card)
+    .filter(c => !seen.has(c.id) && seen.add(c.id));
 
   return { correct, total, stars, weakCards };
 }
