@@ -62,14 +62,28 @@ export default function FlashCard({ t, card, isLoading, subject, onReport }) {
         <span className="card-emoji" role="img" aria-label={card.word}>{card.emoji}</span>
       </div>
 
-      {/* Word + Chinese + Pinyin */}
+      {/* Word + Chinese + Pinyin
+          Chinese subject: show 汉字 big → pinyin → English small
+          English/Math:    show English big → 汉字 → pinyin */}
       <div className="relative text-center mb-4 space-y-1">
-        <div className="card-word" style={{ color: theme.accent }}>{card.word}</div>
-        {card.chinese && (
-          <div className="card-chinese font-semibold" style={{ color: 'var(--color-text)' }}>{card.chinese}</div>
-        )}
-        {card.pinyin && (
-          <div className="card-pinyin" style={{ color: 'var(--color-muted)' }}>{card.pinyin}</div>
+        {subject === 'chinese' && card.chinese ? (
+          <>
+            <div className="card-chinese font-bold" style={{ color: theme.accent }}>{card.chinese}</div>
+            {card.pinyin && (
+              <div className="card-pinyin" style={{ color: 'var(--color-muted)' }}>{card.pinyin}</div>
+            )}
+            <div className="text-sm font-semibold mt-1" style={{ color: 'var(--color-muted)' }}>{card.word}</div>
+          </>
+        ) : (
+          <>
+            <div className="card-word" style={{ color: theme.accent }}>{card.word}</div>
+            {card.chinese && (
+              <div className="card-chinese font-semibold" style={{ color: 'var(--color-text)' }}>{card.chinese}</div>
+            )}
+            {card.pinyin && (
+              <div className="card-pinyin" style={{ color: 'var(--color-muted)' }}>{card.pinyin}</div>
+            )}
+          </>
         )}
       </div>
 
