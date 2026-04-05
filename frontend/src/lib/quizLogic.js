@@ -19,16 +19,30 @@ export function shuffled(arr) {
 
 /**
  * Selects up to `count` cards for a quiz session.
- * Priority: mastery === null > mastery < 3 > mastery >= 3.
+ * Priority:
+ *   1. Never reviewed (mastery === null)
+ *   2. Overdue for review (nextReviewAt <= now)
+ *   3. Learning (mastery < 3, not overdue)
+ *   4. Mastered (mastery >= 3, not overdue)
  */
 export function selectQuizCards(deck, subject, count) {
   const filtered = deck.filter(c => c.subject === subject);
+  const now = Date.now();
 
-  const priority0 = filtered.filter(c => c.mastery === null || c.mastery === undefined);
-  const priority1 = filtered.filter(c => c.mastery !== null && c.mastery !== undefined && c.mastery < 3);
-  const priority2 = filtered.filter(c => c.mastery !== null && c.mastery !== undefined && c.mastery >= 3);
+  const hasReviewed = c => c.mastery !== null && c.mastery !== undefined;
+  const isOverdue = c => hasReviewed(c) && c.nextReviewAt != null && c.nextReviewAt <= now;
 
-  const ordered = [...shuffled(priority0), ...shuffled(priority1), ...shuffled(priority2)];
+  const priority0 = filtered.filter(c => !hasReviewed(c));
+  const priority1 = filtered.filter(c => isOverdue(c));
+  const priority2 = filtered.filter(c => hasReviewed(c) && !isOverdue(c) && c.mastery < 3);
+  const priority3 = filtered.filter(c => hasReviewed(c) && !isOverdue(c) && c.mastery >= 3);
+
+  const ordered = [
+    ...shuffled(priority0),
+    ...shuffled(priority1),
+    ...shuffled(priority2),
+    ...shuffled(priority3),
+  ];
   return ordered.slice(0, count);
 }
 
@@ -140,13 +154,28 @@ export function buildQuestions(cards, deck, modes) {
   });
 }
 
+// ─── computeNextReviewAt ─────────────────────────────────────────────────────
+
+/**
+ * Returns the timestamp when a card should next be reviewed.
+ * Intervals (days) indexed by new mastery level: [1, 1, 3, 7, 14, 30].
+ * Injectable `now` for deterministic testing.
+ */
+const REVIEW_INTERVALS_DAYS = [1, 1, 3, 7, 14, 30];
+
+export function computeNextReviewAt(mastery, correct, now = Date.now()) {
+  const current = mastery ?? 0;
+  const next = correct ? Math.min(5, current + 1) : Math.max(0, current - 1);
+  return now + REVIEW_INTERVALS_DAYS[next] * 86400000;
+}
+
 // ─── applyMasteryResult ──────────────────────────────────────────────────────
 
 /**
  * Returns a new card with updated mastery fields. Does not mutate input.
  * - Correct: mastery +1 (capped at 5)
- * - Wrong: mastery unchanged
- * - Always: reviewCount +1, lastReviewedAt = Date.now()
+ * - Wrong: mastery -1 (clamped to 0) — surfaces card sooner for re-review
+ * - Always: reviewCount +1, lastReviewedAt = Date.now(), nextReviewAt computed
  */
 export function applyMasteryResult(card, correct) {
   const currentMastery = card.mastery ?? 0;
@@ -154,13 +183,14 @@ export function applyMasteryResult(card, correct) {
 
   const newMastery = correct
     ? Math.min(5, currentMastery + 1)
-    : currentMastery;
+    : Math.max(0, currentMastery - 1);
 
   return {
     ...card,
     mastery: newMastery,
     reviewCount: currentReviewCount + 1,
     lastReviewedAt: Date.now(),
+    nextReviewAt: computeNextReviewAt(card.mastery, correct),
   };
 }
 

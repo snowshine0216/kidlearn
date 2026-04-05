@@ -25,4 +25,20 @@ describe('StatsRow', () => {
     render(<StatsRow t={t} count={2} />);
     expect(screen.queryByText(t.noCardsYet)).toBeNull();
   });
+
+  it('shows dueForReview badge when dueCount > 0', () => {
+    render(<StatsRow t={t} count={5} dueCount={3} />);
+    expect(screen.getByText(t.dueForReview(3))).toBeTruthy();
+  });
+
+  it('does not show dueForReview badge when dueCount is 0', () => {
+    render(<StatsRow t={t} count={5} dueCount={0} />);
+    expect(screen.queryByText(t.dueForReview(3))).toBeNull();
+  });
+
+  it('does not show dueForReview badge when dueCount is undefined', () => {
+    render(<StatsRow t={t} count={5} />);
+    // dueForReview(0) returns '' so nothing rendered
+    expect(screen.queryByText(/due for review/i)).toBeNull();
+  });
 });
