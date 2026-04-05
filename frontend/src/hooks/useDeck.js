@@ -55,12 +55,13 @@ function loadStreak() {
  * Logic: same day = no change, yesterday = +1, older = reset to 1.
  */
 function updateStreak() {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  // Use local date (not UTC) so Chinese users (UTC+8) see the correct day
+  const today = new Date().toLocaleDateString('sv'); // YYYY-MM-DD in local TZ
   const streak = loadStreak();
 
   if (streak.lastDate === today) return streak;
 
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('sv');
   const newStreak = {
     count: streak.lastDate === yesterday ? streak.count + 1 : 1,
     lastDate: today,

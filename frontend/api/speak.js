@@ -36,6 +36,9 @@ export default async function handler(req, res) {
   if (!text) {
     return res.status(400).json({ error: 'text is required' });
   }
+  if (typeof text !== 'string' || text.length > 200) {
+    return res.status(400).json({ error: 'text must be a string under 200 characters' });
+  }
 
   const voiceId = VOICES[lang] ?? VOICES.zh;
 

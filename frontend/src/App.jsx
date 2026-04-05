@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useDeck } from './hooks/useDeck';
 import { loadLang, saveLang, getStrings } from './lib/i18n';
 import TopBar from './components/TopBar';
@@ -19,9 +19,11 @@ export default function App() {
   const [showDeck, setShowDeck] = useState(false);
 
   const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
   const showToast = useCallback((msg) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
 
   const { deck, streak, addCard, deleteCard, reportCard, touchStreak } = useDeck(showToast);

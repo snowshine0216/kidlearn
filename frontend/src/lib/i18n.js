@@ -123,9 +123,17 @@ export function getStrings(lang) {
 }
 
 export function loadLang() {
-  return localStorage.getItem(LANG_KEY) ?? DEFAULT_LANG;
+  try {
+    return localStorage.getItem(LANG_KEY) ?? DEFAULT_LANG;
+  } catch {
+    return DEFAULT_LANG;
+  }
 }
 
 export function saveLang(lang) {
-  localStorage.setItem(LANG_KEY, lang);
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // localStorage unavailable (private mode) — silently ignore
+  }
 }

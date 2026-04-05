@@ -14,7 +14,7 @@ let lastCallTime = 0;
  * Strips injection chars, enforces 50-char limit, preserves CJK.
  */
 export function sanitizeInput(word) {
-  return word.slice(0, 50).replace(/[`'"\\<>\n]/g, '').trim();
+  return word.slice(0, 50).replace(/[`'"\\<>\n\[\]]/g, '').trim();
 }
 
 /**

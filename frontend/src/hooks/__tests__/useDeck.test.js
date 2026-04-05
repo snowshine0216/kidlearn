@@ -76,4 +76,44 @@ describe('useDeck', () => {
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('full'));
     localStorageMock.setItem = origSet;
   });
+
+  it('addCard rejects at 500-card limit', () => {
+    const showToast = vi.fn();
+    const { result } = renderHook(() => useDeck(showToast));
+    // Pre-fill 500 cards directly in localStorage
+    const cards = Array.from({ length: 500 }, (_, i) => ({
+      ...mockCard, id: `card-${i}`, schemaVersion: 1, savedAt: Date.now(),
+    }));
+    localStorageMock.setItem('starcards_deck', JSON.stringify(cards));
+    // Re-render so hook sees the 500 cards
+    const { result: result2 } = renderHook(() => useDeck(showToast));
+    let success;
+    act(() => { success = result2.current.addCard(mockCard); });
+    expect(success).toBe(false);
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('500'));
+  });
+
+  it('reportCard updates knewIt and reviewedAt on the card', () => {
+    const { result } = renderHook(() => useDeck());
+    act(() => { result.current.addCard(mockCard); });
+    const id = result.current.deck[0].id;
+    act(() => { result.current.reportCard(id, true); });
+    expect(result.current.deck[0].knewIt).toBe(true);
+    expect(result.current.deck[0].reviewedAt).not.toBeNull();
+  });
+
+  it('touchStreak increments streak on first call (new day)', () => {
+    const { result } = renderHook(() => useDeck());
+    act(() => { result.current.touchStreak(); });
+    expect(result.current.streak.count).toBeGreaterThanOrEqual(1);
+    expect(result.current.streak.lastDate).not.toBeNull();
+  });
+
+  it('touchStreak does not double-count same day', () => {
+    const { result } = renderHook(() => useDeck());
+    act(() => { result.current.touchStreak(); });
+    const countAfterFirst = result.current.streak.count;
+    act(() => { result.current.touchStreak(); });
+    expect(result.current.streak.count).toBe(countAfterFirst);
+  });
 });

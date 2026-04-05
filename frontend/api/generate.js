@@ -27,8 +27,12 @@ export default async function handler(req, res) {
   }
 
   const { word, subject } = req.body ?? {};
+  const VALID_SUBJECTS = ['english', 'chinese', 'math'];
   if (!word || !subject) {
     return res.status(400).json({ error: 'word and subject are required' });
+  }
+  if (!VALID_SUBJECTS.includes(subject)) {
+    return res.status(400).json({ error: 'subject must be one of: english, chinese, math' });
   }
 
   const systemPrompt = `You are a friendly, creative teacher helping a 6.5-year-old child learn vocabulary.
@@ -107,6 +111,10 @@ For math cards use "green", for Chinese cards use "coral".`;
     const required = ['emoji', 'word', 'sentence', 'color_theme'];
     if (!required.every((f) => typeof card[f] === 'string')) {
       return res.status(502).json({ error: 'AI returned incomplete card' });
+    }
+    const VALID_THEMES = ['purple', 'coral', 'green', 'amber', 'blue', 'pink'];
+    if (!VALID_THEMES.includes(card.color_theme)) {
+      card.color_theme = 'purple'; // fallback to default theme
     }
 
     res.setHeader('Access-Control-Allow-Origin', '*');

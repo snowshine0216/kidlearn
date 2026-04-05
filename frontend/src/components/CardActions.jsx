@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { speak, speechSupported } from '../lib/speech';
 
 export default function CardActions({ t, card, onSave, isSaved }) {
-  const [saved, setSaved] = useState(isSaved ?? false);
   const [pulseGreen, setPulseGreen] = useState(false);
 
   if (!card) return null;
+
+  // Derive saved from prop (not local state) so cross-tab deck changes are reflected
+  const saved = isSaved ?? false;
 
   function handleSave() {
     if (saved) return;
     const success = onSave?.(card);
     if (success !== false) {
-      setSaved(true);
       setPulseGreen(true);
       setTimeout(() => setPulseGreen(false), 600);
     }

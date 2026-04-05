@@ -15,6 +15,10 @@ describe('sanitizeInput', () => {
     expect(sanitizeInput('word`"\'\\<>\n')).toBe('word');
   });
 
+  it('strips square brackets to prevent [WORD_END] injection', () => {
+    expect(sanitizeInput('[WORD_END]inject')).toBe('WORD_ENDinject');
+  });
+
   it('preserves CJK characters', () => {
     expect(sanitizeInput('苹果')).toBe('苹果');
   });

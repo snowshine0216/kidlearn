@@ -52,4 +52,17 @@ describe('FlashCard', () => {
     expect(screen.getByLabelText(t.iKnowIt)).toBeTruthy();
     expect(screen.getByLabelText(t.notYet)).toBeTruthy();
   });
+
+  it('shows 汉字 prominently for Chinese subject cards', () => {
+    const chineseCard = { ...mockCard, subject: 'chinese' };
+    const { container } = render(
+      <FlashCard t={t} card={chineseCard} isLoading={false} subject="chinese" />
+    );
+    // 蝴蝶 should be in .card-chinese (large font), English word 'butterfly' should be in small text
+    const chineseEl = container.querySelector('.card-chinese');
+    expect(chineseEl).not.toBeNull();
+    expect(chineseEl.textContent).toContain('蝴蝶');
+    // English word appears, but NOT in .card-word (that class should be absent for Chinese subject)
+    expect(container.querySelector('.card-word')).toBeNull();
+  });
 });
