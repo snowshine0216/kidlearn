@@ -140,7 +140,7 @@ export default function InputPanel({ t, onCardGenerated, onLoading, recentCards,
                   style={{ backgroundColor: 'var(--color-bg)' }}
                   aria-label={c.word}
                 >
-                  <span className="font-bold">{c.word}</span>{' '}
+                  <span className="font-bold">{c.subject === 'chinese' && c.chinese ? c.chinese : c.word}</span>{' '}
                   <span
                     className="text-xs rounded-full px-2 py-0.5 font-bold"
                     style={{

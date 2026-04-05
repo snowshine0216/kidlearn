@@ -28,7 +28,7 @@ export default function App() {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const { deck, streak, addCard, deleteCard, reportCard, touchStreak, updateCardMastery, patchCard } = useDeck(showToast);
+  const { deck, streak, addCard, deleteCard, touchStreak, updateCardMastery, patchCard } = useDeck(showToast);
 
   const dueCount = deck.filter(c => c.nextReviewAt != null && c.nextReviewAt <= Date.now()).length;
 
@@ -43,21 +43,7 @@ export default function App() {
     setCurrentSubject(card.subject);
     setIsLoading(false);
     touchStreak();
-  }
-
-  function handleSave(card) {
-    const success = addCard(card);
-    if (success) showToast(t.cardSaved);
-    return success;
-  }
-
-  function handleReport(id, knewIt) {
-    const inDeck = deck.find((c) => c.id === id);
-    if (inDeck) reportCard(id, knewIt);
-    if (currentCard?.id === id) {
-      setCurrentCard((c) => ({ ...c, knewIt }));
-    }
-    touchStreak();
+    addCard(card);
   }
 
   function handleLoadRecent(card) {
@@ -113,7 +99,6 @@ export default function App() {
               card={currentCard}
               isLoading={isLoading}
               subject={currentSubject}
-              onReport={handleReport}
             />
 
             {currentCard && !isLoading && (
@@ -122,8 +107,6 @@ export default function App() {
                 <CardActions
                   t={t}
                   card={currentCard}
-                  onSave={handleSave}
-                  isSaved={deck.some((c) => c.id === currentCard.id)}
                 />
               </>
             )}

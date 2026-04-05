@@ -1,11 +1,15 @@
 import { useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { getTheme } from '../lib/colorThemes';
-import { speakCardFull } from '../lib/speech';
+import { speakCardFull, speak } from '../lib/speech';
 
 function safe(html) {
   if (!html) return '';
   return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['em'], ALLOWED_ATTR: [] });
+}
+
+function stripHtml(html) {
+  return html ? html.replace(/<[^>]*>/g, '') : '';
 }
 
 const SUBJECT_BADGES = {
@@ -14,7 +18,7 @@ const SUBJECT_BADGES = {
   math:    { label: 'MATH', bg: 'var(--color-accent-light)', color: 'var(--color-accent)' },
 };
 
-export default function FlashCard({ t, card, isLoading, subject, onReport }) {
+export default function FlashCard({ t, card, isLoading, subject }) {
   useEffect(() => {
     if (card && !isLoading) {
       speakCardFull(card);
@@ -90,7 +94,18 @@ export default function FlashCard({ t, card, isLoading, subject, onReport }) {
       {/* Sentence */}
       {card.sentence && (
         <div className="relative rounded-2xl p-3 mb-3" style={{ backgroundColor: 'rgba(255,255,255,0.6)' }}>
-          <p className="card-sentence" dangerouslySetInnerHTML={{ __html: safe(card.sentence) }} />
+          <button
+            onClick={() => {
+              speak(stripHtml(card.sentence), 'en');
+              if (card.sentence_zh) setTimeout(() => speak(card.sentence_zh, 'zh'), 2000);
+            }}
+            className="absolute top-2 right-2 text-base leading-none opacity-50 hover:opacity-100 transition-opacity"
+            aria-label="Read sentence aloud"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+          >
+            🔊
+          </button>
+          <p className="card-sentence pr-6" dangerouslySetInnerHTML={{ __html: safe(card.sentence) }} />
           {card.sentence_zh && (
             <p className="card-sentence card-chinese mt-1 text-sm" dangerouslySetInnerHTML={{ __html: safe(card.sentence_zh) }} />
           )}
@@ -103,34 +118,6 @@ export default function FlashCard({ t, card, isLoading, subject, onReport }) {
           <p className="card-mnemonic" style={{ color: 'var(--color-muted)' }}>💡 {card.mnemonic}</p>
         </div>
       )}
-
-      {/* Self-report buttons */}
-      <div className="relative flex gap-3 justify-center mt-2">
-        <button
-          onClick={() => onReport?.(card.id, true)}
-          className="card-action-btn flex-1 rounded-2xl font-bold text-sm transition-colors"
-          style={{
-            backgroundColor: card.knewIt === true ? 'var(--color-accent)' : 'rgba(255,255,255,0.7)',
-            color: card.knewIt === true ? 'white' : 'var(--color-accent)',
-            border: '2px solid var(--color-accent)',
-          }}
-          aria-label={t.iKnowIt}
-        >
-          {t.iKnowIt}
-        </button>
-        <button
-          onClick={() => onReport?.(card.id, false)}
-          className="card-action-btn flex-1 rounded-2xl font-bold text-sm transition-colors"
-          style={{
-            backgroundColor: card.knewIt === false ? 'var(--color-coral)' : 'rgba(255,255,255,0.7)',
-            color: card.knewIt === false ? 'white' : 'var(--color-coral)',
-            border: '2px solid var(--color-coral)',
-          }}
-          aria-label={t.notYet}
-        >
-          {t.notYet}
-        </button>
-      </div>
     </div>
   );
 }

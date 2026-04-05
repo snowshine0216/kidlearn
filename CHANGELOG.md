@@ -2,7 +2,7 @@
 
 All notable changes to StarCards will be documented in this file.
 
-## [0.2.1.0] - 2026-04-06
+## [0.2.2.0] - 2026-04-06
 
 ### Added
 - **Countdown timer opt-in** — quiz lobby now has a toggle (default Off) to enable per-question countdown; when On, four intervals are available: 30s, 1 min, 2 min, 5 min
@@ -13,6 +13,16 @@ All notable changes to StarCards will be documented in this file.
 
 ### Fixed
 - Pre-existing `StatsRow` test failure where emoji+text split across DOM nodes caused an exact-match failure
+
+## [0.2.1.0] - 2026-04-06
+
+### Changed
+- Cards now **auto-save** on generation — the 保存 (Save) button has been removed. Every generated card is immediately added to your deck with no extra tap required
+- Removed the 我会了 / 还不会 self-report buttons from the flashcard view, reducing UI clutter
+- Left sidebar now shows **Chinese characters** (汉字) for Chinese-subject cards instead of the English word
+
+### Added
+- **Sentence audio icon** — a 🔊 button appears in the sentence example box. Tapping it reads the English sentence aloud, then the Chinese translation after a short pause
 
 ## [0.2.0.0] - 2026-04-05
 
