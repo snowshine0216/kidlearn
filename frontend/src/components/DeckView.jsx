@@ -24,7 +24,7 @@ export default function DeckView({ t, deck, onDelete, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg)' }} role="dialog" aria-modal="true" aria-label={t.deckTitle(deck.length)}>
       {/* Header */}
       <div
         className="sticky top-0 z-10 flex items-center justify-between px-5 py-4"

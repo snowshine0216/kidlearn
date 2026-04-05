@@ -80,47 +80,60 @@ export default function App() {
         </div>
       )}
 
-      <TopBar
-        t={t}
-        streak={streak}
-        onShowDeck={() => setShowDeck(true)}
-        onLangToggle={handleLangToggle}
-      />
-
-      <main className="flex flex-1 gap-4 p-4 md:p-6 flex-col md:flex-row">
-        <InputPanel
+      {/* inert disables keyboard/pointer interaction on background when DeckView is open */}
+      <div {...(showDeck ? { inert: '' } : {})}>
+        <TopBar
           t={t}
-          onCardGenerated={handleCardGenerated}
-          onLoading={setIsLoading}
-          recentCards={deck}
-          onLoadRecent={handleLoadRecent}
+          streak={streak}
+          onShowDeck={() => setShowDeck(true)}
+          onLangToggle={handleLangToggle}
         />
 
-        <div className="flex flex-col gap-4 flex-1 min-w-0 pb-24 md:pb-0">
-          <FlashCard
-            key={currentCard?.id ?? 'empty'}
+        <main className="flex flex-1 gap-4 p-4 md:p-6 flex-col md:flex-row">
+          <InputPanel
             t={t}
-            card={currentCard}
-            isLoading={isLoading}
-            subject={currentSubject}
-            onReport={handleReport}
+            onCardGenerated={handleCardGenerated}
+            onLoading={setIsLoading}
+            recentCards={deck}
+            onLoadRecent={handleLoadRecent}
           />
 
-          {currentCard && !isLoading && (
-            <>
-              <MascotMessage message={currentCard.mascot_message} />
-              <CardActions
-                t={t}
-                card={currentCard}
-                onSave={handleSave}
-                isSaved={deck.some((c) => c.id === currentCard.id)}
-              />
-            </>
-          )}
+          <div className="flex flex-col gap-4 flex-1 min-w-0 pb-24 md:pb-0">
+            <FlashCard
+              key={currentCard?.id ?? 'empty'}
+              t={t}
+              card={currentCard}
+              isLoading={isLoading}
+              subject={currentSubject}
+              onReport={handleReport}
+            />
 
-          <StatsRow t={t} count={deck.length} />
-        </div>
-      </main>
+            {currentCard && !isLoading && (
+              <>
+                <MascotMessage message={currentCard.mascot_message} />
+                <CardActions
+                  t={t}
+                  card={currentCard}
+                  onSave={handleSave}
+                  isSaved={deck.some((c) => c.id === currentCard.id)}
+                />
+              </>
+            )}
+
+            <StatsRow t={t} count={deck.length} />
+          </div>
+        </main>
+
+        {/* Mobile FAB */}
+        <button
+          className="fab-add md:hidden w-14 h-14 rounded-full flex items-center justify-center text-2xl text-white shadow-lg"
+          style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)' }}
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label={t.inputHint}
+        >
+          ✏️
+        </button>
+      </div>
 
       {showDeck && (
         <DeckView
@@ -130,16 +143,6 @@ export default function App() {
           onClose={() => setShowDeck(false)}
         />
       )}
-
-      {/* Mobile FAB */}
-      <button
-        className="fab-add md:hidden w-14 h-14 rounded-full flex items-center justify-center text-2xl text-white shadow-lg"
-        style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)' }}
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        aria-label={t.inputHint}
-      >
-        ✏️
-      </button>
 
       {toast && (
         <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-xl shadow-lg z-50 text-sm font-semibold">
