@@ -47,10 +47,6 @@
 - Structure code as: Input → Transform → Output
 - Keep I/O operations at the edges
 
-### File Organization
-- Group by feature/domain, not by technical layer
-- Example: `lib/teams/`, `lib/feishu/`, `skills/rca/`
-- Keep related code together
 
 ### Function Size
 - Keep functions small (< 20 lines ideal)
