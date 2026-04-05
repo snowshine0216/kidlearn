@@ -32,6 +32,9 @@
 
 ## Completed
 
+**Title:** Countdown timer (opt-in, configurable intervals: 30s / 1 min / 2 min / 5 min); timeout plays bell + "Time's up!" without revealing answer; removed 3-round system
+**Completed:** v0.2.1.0 (2026-04-06)
+
 **Title:** Quiz mode
 **Completed:** v0.2.0.0 (2026-04-05)
 
