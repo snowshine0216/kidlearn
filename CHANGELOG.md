@@ -2,6 +2,18 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.2.1.0] - 2026-04-06
+
+### Added
+- **Countdown timer opt-in** — quiz lobby now has a toggle (default Off) to enable per-question countdown; when On, four intervals are available: 30s, 1 min, 2 min, 5 min
+
+### Changed
+- **Timer behaviour on timeout** — time expiry now plays a bell sound and shows "Time's up!" without revealing or speaking the answer; previously the timer spoke the word and repeated up to 3 rounds
+- **Single-round countdown** — removed the 3-round system; each question gets exactly one countdown interval when enabled
+
+### Fixed
+- Pre-existing `StatsRow` test failure where emoji+text split across DOM nodes caused an exact-match failure
+
 ## [0.2.0.0] - 2026-04-05
 
 ### Added
