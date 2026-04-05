@@ -45,6 +45,18 @@ Each card costs roughly ¥0.01–0.02 — a family app will stay well under ¥5/
 
 ---
 
+## Running Tests
+
+```bash
+cd frontend
+npm run test        # run all tests once (99 tests)
+npm run test:watch  # watch mode
+```
+
+Tests use Vitest + @testing-library/react. Covers: i18n, speech, claudeApi, and all React components.
+
+---
+
 ## Deploy to Vercel
 
 ### First deploy
