@@ -2,6 +2,13 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.2.3.0] - 2026-04-06
+
+### Fixed
+- **Quiz hints now display in Chinese** — all hint fields (encouragement, extra sentence, pronunciation guide, mnemonic) now appear in Simplified Chinese (简体中文) as intended. Previously they were generated in English
+- **English-subject audio order** — flashcard audio now plays: English word → Chinese characters → Chinese pinyin. Previously the Chinese characters step was missing
+- **Chinese-subject audio order** — flashcard audio now plays: Chinese characters → full pinyin → syllable-by-syllable → English word. Previously the English word was never spoken
+
 ## [0.2.2.0] - 2026-04-06
 
 ### Added

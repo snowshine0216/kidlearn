@@ -32,6 +32,12 @@
 
 ## Completed
 
+**Title:** Fix quiz hints to display in Simplified Chinese (简体中文)
+**Completed:** v0.2.3.0 (2026-04-06)
+
+**Title:** Fix TTS audio order — English cards: word → Chinese → pinyin; Chinese cards: Chinese → pinyin → syllables → English
+**Completed:** v0.2.3.0 (2026-04-06)
+
 **Title:** Countdown timer (opt-in, configurable intervals: 30s / 1 min / 2 min / 5 min); timeout plays bell + "Time's up!" without revealing answer; removed 3-round system
 **Completed:** v0.2.1.0 (2026-04-06)
 
