@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ─────────────────────────────────────────── */
+:root {
+  --color-primary:       #7F77DD;
+  --color-primary-light: #EEEDFE;
+  --color-primary-dark:  #3C3489;
+  --color-accent:        #1D9E75;
+  --color-accent-light:  #E1F5EE;
+  --color-warm:          #EF9F27;
+  --color-warm-light:    #FAEEDA;
+  --color-coral:         #D85A30;
+  --color-coral-light:   #FAECE7;
+  --color-pink:          #D4537E;
+  --color-blue:          #0C447C;
+  --color-blue-light:    #E6F1FB;
+  --color-bg:            #F8F7FF;
+  --color-card:          #FFFFFF;
+  --color-text:          #2C2C2A;
+  --color-muted:         #767470; /* 4.6:1 contrast on white */
+  --color-border:        rgba(127, 119, 221, 0.15);
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Nunito", "Comic Sans MS", cursive, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Typography Scale ───────────────────────────────────────── */
+.card-emoji    { font-size: clamp(64px, 10vw, 96px); line-height: 1; }
+.card-word     { font-size: clamp(32px, 5vw, 48px); font-family: "Baloo 2", "Trebuchet MS", cursive, sans-serif; font-weight: 700; word-break: break-word; }
+.card-chinese  { font-size: clamp(24px, 4vw, 36px); font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
+/* CJK font-family only — use where font-size is set separately (e.g. deck thumbnails) */
+.cjk-font      { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.card-pinyin   { font-size: clamp(16px, 2.5vw, 22px); }
+.card-sentence { font-size: clamp(14px, 2vw, 18px); overflow-y: auto; max-height: 80px; }
+.card-mnemonic { font-size: clamp(13px, 1.8vw, 16px); overflow-y: auto; max-height: 80px; }
+
+/* ─── Touch Targets ──────────────────────────────────────────── */
+.card-action-btn  { min-height: 56px; min-width: 56px; }
+.subject-tab      { min-height: 48px; }
+.recent-chip      { min-height: 44px; }
+
+/* ─── Animations ─────────────────────────────────────────────── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-enter { animation: slideUp 0.4s ease forwards; }
+
+@keyframes pulse-green {
+  0%   { background-color: var(--color-primary); }
+  50%  { background-color: var(--color-accent); transform: scale(1.05); }
+  100% { background-color: var(--color-primary); }
+}
+.pulse-green { animation: pulse-green 0.6s ease; }
+
+@keyframes shimmer {
+  0%   { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+.card-loading {
+  background: linear-gradient(to right, #f0eefc 8%, #dddaf8 18%, #f0eefc 33%);
+  background-size: 800px 104px;
+  animation: shimmer 1.2s infinite linear;
+  border-radius: 24px;
+  min-height: 360px;
+}
+
+/* ─── InputPanel Collapse ────────────────────────────────────── */
+.input-panel-collapsed {
+  width: 48px !important;
+  overflow: hidden;
+}
+.input-panel-collapsed .panel-content {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─── Mobile: CardActions + FAB ──────────────────────────────── */
+@media (max-width: 768px) {
+  .card-actions-row {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: 12px;
+    background: white;
+    border-top: 1px solid var(--color-border);
+    z-index: 10;
+  }
+  .fab-add {
+    position: fixed;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    right: 16px;
+    z-index: 20;
+  }
+}
+
+/* ─── Print ──────────────────────────────────────────────────── */
+@media print {
+  .top-bar, .input-panel, .card-actions, .stats-row, .mascot-msg { display: none !important; }
+  .flashcard {
+    border: 2px solid #ccc;
+    box-shadow: none;
+    page-break-inside: avoid;
+    width: 100%;
+  }
+}
