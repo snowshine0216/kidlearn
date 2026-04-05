@@ -7,6 +7,12 @@ import { getTheme } from '../lib/colorThemes';
 const EN_MODES = ['pronunciation', 'fill-blank', 'word-meaning'];
 const ZH_MODES = ['reading'];
 const COUNT_OPTIONS = [5, 10, 20];
+const COUNTDOWN_OPTIONS = [
+  { seconds: 30, label: '30s' },
+  { seconds: 60, label: '1 min' },
+  { seconds: 120, label: '2 min' },
+  { seconds: 300, label: '5 min' },
+];
 const PREFETCH_EAGER = 5;
 
 // ─── QuizLobby ───────────────────────────────────────────────────────────────
@@ -14,6 +20,8 @@ const PREFETCH_EAGER = 5;
 function QuizLobby({ t, deck, onStart, onClose }) {
   const [subject, setSubject] = useState('english');
   const [count, setCount] = useState(5);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [countdownInterval, setCountdownInterval] = useState(30);
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
 
@@ -24,7 +32,7 @@ function QuizLobby({ t, deck, onStart, onClose }) {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setLoading(true);
-    await onStart({ subject, count });
+    await onStart({ subject, count, showCountdown, countdownInterval });
     inFlightRef.current = false;
     setLoading(false);
   }
@@ -81,6 +89,42 @@ function QuizLobby({ t, deck, onStart, onClose }) {
         </div>
       </div>
 
+      {/* Countdown toggle */}
+      <div className="w-full">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-muted)' }}>
+            {t.quizShowCountdown}
+          </p>
+          <button
+            onClick={() => setShowCountdown(v => !v)}
+            className="px-3 py-1 rounded-xl font-bold text-sm"
+            style={{
+              background: showCountdown ? 'var(--color-primary)' : 'var(--color-primary-light)',
+              color: showCountdown ? 'white' : 'var(--color-primary-dark)',
+            }}
+          >
+            {showCountdown ? t.quizCountdownOn : t.quizCountdownOff}
+          </button>
+        </div>
+        {showCountdown && (
+          <div className="flex gap-2 mt-2">
+            {COUNTDOWN_OPTIONS.map(({ seconds, label }) => (
+              <button
+                key={seconds}
+                onClick={() => setCountdownInterval(seconds)}
+                className="flex-1 py-2 rounded-xl font-bold text-sm"
+                style={{
+                  background: countdownInterval === seconds ? 'var(--color-primary)' : 'var(--color-primary-light)',
+                  color: countdownInterval === seconds ? 'white' : 'var(--color-primary-dark)',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {!canStart && (
         <p className="text-sm text-center" style={{ color: 'var(--color-coral)' }}>
           {t.quizNeedCards}
@@ -116,39 +160,57 @@ function QuizProgress({ current, total, t }) {
 
 // ─── QuizQuestion ─────────────────────────────────────────────────────────────
 
-function QuizQuestion({ question, t, lang, onAnswer, hintLoading }) {
+function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
+  const { showCountdown = false, countdownInterval = 30 } = settings ?? {};
   const [showHint, setShowHint] = useState(false);
   const [chosen, setChosen] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [round, setRound] = useState(1);
+  const [timeLeft, setTimeLeft] = useState(countdownInterval);
   const [showReminder, setShowReminder] = useState(false);
   // null = unanswered; true = 我会了 clicked; false = 还不会 clicked
   const [selfReportPending, setSelfReportPending] = useState(null);
   const theme = getTheme(card.color_theme ?? 'purple');
 
-  // Countdown timer — resets naturally on each new question via key=currentIdx remount
+  function playBell() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.8);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.8);
+      // Close context when audio ends; fallback timeout handles suspended contexts
+      osc.onended = () => ctx.close().catch(() => {});
+      setTimeout(() => ctx.close().catch(() => {}), 1000);
+    } catch (e) { /* ignore */ }
+  }
+
+  const timerExpiredRef = useRef(false);
+
+  // Tick: pure state decrement, no side effects in updater
   useEffect(() => {
-    const id = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev > 1) return prev - 1;
-        // Time expired for this round — speak the word as an audio reminder
-        speakCardFull(card);
-        setRound(r => {
-          if (r >= 3) {
-            // 3 rounds exhausted — auto-advance as wrong
-            setTimeout(() => onAnswer(false, card.id), 800);
-            return r;
-          }
-          setShowReminder(true);
-          setTimeout(() => setShowReminder(false), 2500);
-          return r + 1;
-        });
-        return 30; // reset timer for next round
-      });
-    }, 1000);
+    if (!showCountdown) return;
+    timerExpiredRef.current = false;
+    const id = setInterval(() => setTimeLeft(prev => (prev > 1 ? prev - 1 : 0)), 1000);
     return () => clearInterval(id);
-  }, [card.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [card.id, showCountdown]);
+
+  // Expiry: fires once when timeLeft hits 0, skipped if already answered
+  useEffect(() => {
+    if (!showCountdown || timeLeft > 0 || timerExpiredRef.current) return;
+    if (chosen || selfReportPending !== null) return;
+    timerExpiredRef.current = true;
+    playBell();
+    setShowReminder(true);
+    const advanceTimer = setTimeout(() => onAnswer(false, card.id), 1500);
+    return () => clearTimeout(advanceTimer);
+  }, [timeLeft, showCountdown, chosen, selfReportPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleChoice(c) {
     if (chosen) return;
@@ -236,12 +298,13 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading }) {
 
       {cardDisplay}
 
-      {/* Countdown — hidden while animation is playing */}
-      {selfReportPending === null && (
+      {/* Countdown — only shown when enabled and no animation playing */}
+      {showCountdown && selfReportPending === null && (
         <div className="flex items-center justify-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-muted)' }}>
-          <span>⏱️ {timeLeft}s</span>
-          {showReminder && (
-            <span style={{ color: 'var(--color-coral)' }}>{t.quizCountdownReminder}</span>
+          {showReminder ? (
+            <span style={{ color: 'var(--color-coral)' }}>{t.quizTimeUp}</span>
+          ) : (
+            <span>⏱️ {timeLeft}s</span>
           )}
         </div>
       )}
@@ -486,6 +549,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   const [results, setResults] = useState([]);
   const [lastCorrect, setLastCorrect] = useState(null);
   const [hintLoadingSet, setHintLoadingSet] = useState(new Set());
+  const [quizSettings, setQuizSettings] = useState({ showCountdown: false, countdownInterval: 30 });
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -495,7 +559,8 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   const currentQuestion = questions[currentIdx] ?? null;
   const isLast = currentIdx === questions.length - 1;
 
-  async function handleStart({ subject, count }) {
+  async function handleStart({ subject, count, showCountdown, countdownInterval }) {
+    setQuizSettings({ showCountdown, countdownInterval });
     const modes = subject === 'english' ? EN_MODES : ZH_MODES;
     const selected = selectQuizCards(deck, subject, count);
     const built = buildQuestions(selected, deck, modes);
@@ -612,6 +677,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
               lang={lang}
               onAnswer={handleAnswer}
               hintLoading={hintLoadingSet.has(currentQuestion.card.id)}
+              settings={quizSettings}
             />
           </>
         )}
