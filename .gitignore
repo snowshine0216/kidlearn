@@ -7,3 +7,4 @@ dist/
 .DS_Store
 .gstack/
 .claude/launch.json
+.claude/worktrees/

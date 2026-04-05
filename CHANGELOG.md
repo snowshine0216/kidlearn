@@ -2,6 +2,12 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.1.1.0] - 2026-04-05
+
+### Added
+- **Full test coverage** for all previously untested source files: `i18n.js`, `speech.js`, `claudeApi.js` (generateCard), `CardActions`, `StatsRow`, `TopBar`, `MascotMessage`, `InputPanel`, `DeckView` — 99 tests across 12 test files
+- Tests cover happy paths, error states, edge cases (localStorage throws, network fallback, cooldown enforcement, filter/delete interactions, export, streak badge display)
+
 ## [0.1.0.0] - 2026-04-05
 
 ### Added
