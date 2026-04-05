@@ -3,6 +3,7 @@
 ## Tooling
 
 - `gh` is at `/opt/homebrew/bin/gh`
+- `bun` is at `/Users/snow/.bun/bin/bun`
 
 ---
 
