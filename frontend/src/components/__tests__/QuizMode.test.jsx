@@ -98,6 +98,31 @@ describe('QuizMode — Lobby', () => {
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('countdown toggle defaults to Off', () => {
+    render(<QuizMode {...DEFAULT_PROPS} />);
+    expect(screen.getByText(/^off$/i)).toBeTruthy();
+  });
+
+  it('shows interval options when countdown is toggled On', async () => {
+    render(<QuizMode {...DEFAULT_PROPS} />);
+    const offBtn = screen.getByText(/^off$/i);
+    await act(async () => { fireEvent.click(offBtn); });
+    expect(screen.getByText('30s')).toBeTruthy();
+    expect(screen.getByText('1 min')).toBeTruthy();
+    expect(screen.getByText('2 min')).toBeTruthy();
+    expect(screen.getByText('5 min')).toBeTruthy();
+  });
+
+  it('hides interval options when countdown is toggled back Off', async () => {
+    render(<QuizMode {...DEFAULT_PROPS} />);
+    const offBtn = screen.getByText(/^off$/i);
+    await act(async () => { fireEvent.click(offBtn); });
+    expect(screen.getByText('30s')).toBeTruthy();
+    const onBtn = screen.getByText(/^on$/i);
+    await act(async () => { fireEvent.click(onBtn); });
+    expect(screen.queryByText('30s')).toBeFalsy();
+  });
 });
 
 // ─── Question Phase ───────────────────────────────────────────────────────────

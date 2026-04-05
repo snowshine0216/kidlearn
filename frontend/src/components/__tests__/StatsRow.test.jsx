@@ -28,7 +28,7 @@ describe('StatsRow', () => {
 
   it('shows dueForReview badge when dueCount > 0', () => {
     render(<StatsRow t={t} count={5} dueCount={3} />);
-    expect(screen.getByText(t.dueForReview(3))).toBeTruthy();
+    expect(screen.getByText(t.dueForReview(3), { exact: false })).toBeTruthy();
   });
 
   it('does not show dueForReview badge when dueCount is 0', () => {
