@@ -59,17 +59,18 @@ export async function speakCard(word, pinyin) {
 /**
  * Speak a card in the correct pedagogical order based on subject.
  *
- * Chinese cards (e.g. 苹果 / píng guǒ):
- *   1. Speak 汉字 whole: 苹果
- *   2. 900 ms pause
- *   3. Speak full pinyin: píng guǒ
- *   4. 700 ms pause
- *   5. Speak each syllable individually: píng … guǒ (650 ms apart)
+ * Chinese cards (e.g. 苹果 / píng guǒ / apple):
+ *   1. 汉字 whole: 苹果
+ *   2. 900 ms → full pinyin: píng guǒ
+ *   3. 700 ms → each syllable individually: píng … guǒ (650 ms apart)
+ *   4. after last syllable + 200 ms → English word: apple
+ *   (if no pinyin: 汉字, then English at 1200 ms)
  *
- * English/Math cards:
- *   1. Speak English word
- *   2. 1400 ms pause
- *   3. Speak full pinyin (if present)
+ * English/Math cards (e.g. butterfly / 蝴蝶 / hú dié):
+ *   1. English word: butterfly
+ *   2. 1400 ms → Chinese characters: 蝴蝶
+ *   3. 3200 ms → full pinyin: hú dié
+ *   (if no chinese: English word, then pinyin at 1400 ms)
  */
 export async function speakCardFull(card) {
   if (card.subject === 'chinese' && card.chinese) {
@@ -83,10 +84,19 @@ export async function speakCardFull(card) {
         setTimeout(() => speak(syl, 'zh'), offset);          // each syllable
         offset += 650;
       });
+      // after last syllable (offset is 650ms past its start), add English
+      if (card.word) setTimeout(() => speak(card.word, 'en'), offset + 200);
+    } else {
+      if (card.word) setTimeout(() => speak(card.word, 'en'), 1200);
     }
   } else {
     await speak(card.word, 'en');
-    if (card.pinyin) setTimeout(() => speak(card.pinyin, 'zh'), 1400);
+    if (card.chinese) {
+      setTimeout(() => speak(card.chinese, 'zh'), 1400);
+      if (card.pinyin) setTimeout(() => speak(card.pinyin, 'zh'), 3200);
+    } else if (card.pinyin) {
+      setTimeout(() => speak(card.pinyin, 'zh'), 1400);
+    }
   }
 }
 

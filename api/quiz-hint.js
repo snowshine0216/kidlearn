@@ -9,6 +9,37 @@
 
 const MINIMAX_API_URL = 'https://api.minimax.chat/v1/text/chatcompletion_v2';
 
+export function buildSystemPrompt() {
+  return `You are a warm, encouraging bilingual tutor helping a child aged 5–8 learn vocabulary.
+When a child gets an answer wrong, you provide a short, supportive hint to help them remember.
+Keep all language simple — the child is young!
+Always write ALL hint text in Simplified Chinese (简体中文). Do not use English in any hint field.
+If the word seems inappropriate for a child, respond about a "rainbow" instead.
+Always respond with valid JSON only. No markdown, no preamble, no explanation.`;
+}
+
+export function buildUserPrompt({ word, chinese, pinyin, subject, type, needsMnemonic }) {
+  const mnemonicField = needsMnemonic
+    ? `"mnemonic": "用1-2句话，用图像或谐音帮助记忆",`
+    : '';
+  return `A child missed this word in a quiz.
+Word: [WORD_START]${word}[WORD_END]
+Chinese: [ZH_START]${chinese ?? ''}[ZH_END]
+Pinyin: [PY_START]${pinyin ?? ''}[PY_END]
+Subject: ${subject}
+Quiz type: ${type}
+
+Give a short, friendly hint in Simplified Chinese (简体中文) to help them remember.
+Respond ONLY with this JSON:
+{
+  "encouragement": "用1-2句话，把词语和有趣的事物联系起来",
+  "extraSentence": "用这个词造一个简单的句子",
+  "pronunciationGuide": "把发音分解成音节（例：蝴·蝶 🦋）"${needsMnemonic ? ',' : ''}
+  ${mnemonicField}
+}
+用5-8岁孩子能理解的简体中文写所有内容。`;
+}
+
 const VALID_SUBJECTS = ['english', 'chinese', 'math'];
 const VALID_QUIZ_TYPES = ['pronunciation', 'fill-blank', 'word-meaning', 'reading'];
 
@@ -76,32 +107,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'hasMnemonic must be a boolean' });
   }
 
-  const systemPrompt = `You are a warm, encouraging bilingual tutor helping a child aged 5–8 learn vocabulary.
-When a child gets an answer wrong, you provide a short, supportive hint to help them remember.
-Keep all language simple — the child is young!
-If the word seems inappropriate for a child, respond about a "rainbow" instead.
-Always respond with valid JSON only. No markdown, no preamble, no explanation.`;
-
   const needsMnemonic = !hasMnemonic;
-  const mnemonicField = needsMnemonic
-    ? `"mnemonic": "A 1-2 sentence memory trick using imagery or wordplay",`
-    : '';
-
-  const userPrompt = `A child missed this word in a quiz.
-Word: [WORD_START]${word}[WORD_END]
-Chinese: [ZH_START]${chinese ?? ''}[ZH_END]
-Pinyin: [PY_START]${pinyin ?? ''}[PY_END]
-Subject: ${subject}
-Quiz type: ${type}
-
-Give a short, friendly hint to help them remember. Respond ONLY with this JSON:
-{
-  "encouragement": "A playful tip or observation linking the word to something memorable (1–2 sentences)",
-  "extraSentence": "A simple fun sentence using the word in context",
-  "pronunciationGuide": "How to say it, broken into syllables (e.g. BUT·ter·fly 🦋)"${needsMnemonic ? ',' : ''}
-  ${mnemonicField}
-}
-Keep all text at a level a 5–8 year old can understand.`;
+  const systemPrompt = buildSystemPrompt();
+  const userPrompt = buildUserPrompt({ word, chinese, pinyin, subject, type, needsMnemonic });
 
   try {
     const response = await fetch(MINIMAX_API_URL, {
