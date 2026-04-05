@@ -106,6 +106,10 @@ const STRINGS = {
     quizWeakTitle: '需要多练习的词：',
     quizRestart: '再来一次 🔄',
     quizBackToDeck: '返回卡组',
+    quizCountdownReminder: '记得答题哦！⏰',
+    quizSelfPraise: '太棒了！你说出来了！🌟',
+    quizRememberIt: '记住它 💡',
+    dueForReview: (n) => n > 0 ? `${n} 张需要复习` : '',
   },
 
   en: {
@@ -195,6 +199,10 @@ const STRINGS = {
     quizWeakTitle: 'Words to practice more:',
     quizRestart: 'Try Again 🔄',
     quizBackToDeck: 'Back to Deck',
+    quizCountdownReminder: 'Remember to answer! ⏰',
+    quizSelfPraise: 'Amazing! You said it! 🌟',
+    quizRememberIt: "Let's remember it 💡",
+    dueForReview: (n) => n > 0 ? `${n} due for review` : '',
   },
 };
 
