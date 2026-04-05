@@ -2,6 +2,25 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.2.0.0] - 2026-04-05
+
+### Added
+- **Quiz Mode** — children can now test themselves on saved cards with a full 4-phase flow: lobby → question → feedback → summary
+- **English question types** — pronunciation (self-report + 🔊 audio), fill-in-the-blank (multiple choice from card sentence), word-to-meaning (pick Chinese from 3 options)
+- **Chinese reading mode** — show the hanzi, child self-reports whether they can read it, hear pronunciation on "not sure"
+- **Memory Helper** — wrong answers trigger a personalized AI hint (encouragement, example sentence, pronunciation guide) via new `/api/quiz-hint` endpoint; cached per card/type so it only fetches once
+- **Quiz lobby** — subject toggle (English/Chinese), question count presets (5/10/20) disabled when deck is too small, loading state during hint prefetch
+- **Quiz summary** — star rating (0–3 stars), score message, weak card list, Try Again / Back to Deck
+- **Mastery tracking** — each answer updates `mastery`, `reviewCount`, `lastReviewedAt` on the card; future quizzes prioritize low-mastery cards
+- **Canvas confetti** — correct answers and perfect scores trigger confetti (respects `prefers-reduced-motion`)
+- **🎯 quiz button** in TopBar and DeckView header — appears when deck has 5+ cards of the selected subject
+- **Rate limiting** on `/api/quiz-hint` — 30 requests/min per IP, sliding window
+- **3 new tests** for `updateCardMastery` and `patchCard` hooks in `useDeck`
+
+### Changed
+- `useDeck` — added `updateCardMastery(id, correct)` and `patchCard(id, fields)` using functional updater pattern (no stale closure risk)
+- `App.jsx` — `inert` guard extended to cover quiz modal alongside deck view
+
 ## [0.1.1.0] - 2026-04-05
 
 ### Added
