@@ -1,4 +1,4 @@
-export default function TopBar({ t, streak, onShowDeck, onLangToggle }) {
+export default function TopBar({ t, streak, onShowDeck, onLangToggle, onStartQuiz, canStartQuiz }) {
   return (
     <header
       className="top-bar flex items-center justify-between px-5 py-3"
@@ -35,6 +35,18 @@ export default function TopBar({ t, streak, onShowDeck, onLangToggle }) {
           >
             {t.streakBadge(streak.count)}
           </div>
+        )}
+
+        {/* Quiz button */}
+        {canStartQuiz && (
+          <button
+            onClick={onStartQuiz}
+            className="px-3 py-1 rounded-full text-xs font-bold transition-colors"
+            style={{ backgroundColor: 'var(--color-warm-light)', color: 'var(--color-warm)' }}
+            aria-label={t.startQuiz}
+          >
+            🎯
+          </button>
         )}
 
         {/* Deck button */}
