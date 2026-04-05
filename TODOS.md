@@ -4,7 +4,7 @@
 
 **Title:** Server-side rate limiting for `/api/generate` and `/api/speak`
 **Priority:** P1
-**Description:** Both endpoints have no rate limiting. A bot could drain the MiniMax API key. Mitigated for now by MiniMax spend cap + Vercel's default request limits. Add IP-based rate limiting (e.g., Vercel KV + sliding window) before sharing the URL publicly.
+**Description:** Both endpoints have no rate limiting. A bot could drain the MiniMax API key. Mitigated for now by MiniMax spend cap + Vercel's default request limits. Add IP-based rate limiting (e.g., Vercel KV + sliding window) before sharing the URL publicly. (Note: `/api/quiz-hint` added in-memory sliding window rate limiting in v0.2.0.0 — apply same pattern to generate and speak.)
 
 **Title:** Unbounded audio cache in `speech.js`
 **Priority:** P2
@@ -16,17 +16,11 @@
 
 ## v2 Features (Deferred from v1)
 
-**Title:** Quiz mode
-**Priority:** P3
-**Description:** Multiple-choice quiz with confetti on correct answer. Requires mastery tracking fields (`mastery`, `reviewCount`, `lastReviewedAt`) and `QuizMode.jsx` component.
-
 **Title:** Mastery tracking + spaced repetition
 **Priority:** P3
-**Description:** Build on `knewIt`/`reviewedAt` fields from v1. Add spaced repetition logic in `useDeck.js`. Show mastery stars on FlashCard and "Mastered / Need Review" stats in StatsRow.
+**Description:** Build on `knewIt`/`reviewedAt` fields from v1. Add spaced repetition logic in `useDeck.js`. Show mastery stars on FlashCard and "Mastered / Need Review" stats in StatsRow. (Note: mastery fields now populated by quiz mode as of v0.2.0.0; spaced repetition algorithm and StatsRow display still pending.)
 
-**Title:** "Start Full Quiz" + sort-by-mastery in DeckView
-**Priority:** P3
-**Description:** After quiz mode exists, add quiz entry point and mastery sort to DeckView.
+**Title:** Style selector (Illustrated / Story / Song)
 
 **Title:** Style selector (Illustrated / Story / Song)
 **Priority:** P4
@@ -37,6 +31,12 @@
 **Description:** localStorage is single-device. Move to cloud persistence (e.g., Vercel KV, Supabase) for cross-device access. Required for families with multiple devices.
 
 ## Completed
+
+**Title:** Quiz mode
+**Completed:** v0.2.0.0 (2026-04-05)
+
+**Title:** "Start Full Quiz" + quiz entry point in DeckView and TopBar
+**Completed:** v0.2.0.0 (2026-04-05)
 
 **Title:** StarCards v1 — MiniMax-powered bilingual flashcard app
 **Completed:** v0.1.0.0 (2026-04-05)

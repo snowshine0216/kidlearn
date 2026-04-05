@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { applyMasteryResult } from '../lib/quizLogic';
 
 const DECK_KEY = 'starcards_deck';
 const STREAK_KEY = 'starcards_streak';
@@ -12,10 +13,11 @@ function migrateCard(card) {
     schemaVersion: 1,
     knewIt: null,        // boolean | null — set when child taps self-report
     reviewedAt: null,    // timestamp | null — set when self-report is tapped
-    // v2 stubs (null until quiz mode is built)
+    // v2 stubs (populated by quiz mode)
     mastery: null,
     reviewCount: null,
     lastReviewedAt: null,
+    quizHints: null,     // { [type]: QuizHint } — cached per quiz type
     ...card,             // existing fields override defaults
   };
 }
@@ -142,5 +144,29 @@ export function useDeck(showToast) {
     setStreak(newStreak);
   }, []);
 
-  return { deck, streak, addCard, deleteCard, reportCard, touchStreak };
+  /**
+   * Update mastery fields after a quiz answer.
+   * Uses functional updater to avoid stale closure race conditions.
+   */
+  const updateCardMastery = useCallback((id, correct) => {
+    setDeck((prev) => {
+      const next = prev.map((c) => (c.id === id ? applyMasteryResult(c, correct) : c));
+      saveDeck(next);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Patch arbitrary fields on a card (e.g. save back generated mnemonic or quizHints).
+   * Uses functional updater to avoid stale closure race conditions.
+   */
+  const patchCard = useCallback((id, fields) => {
+    setDeck((prev) => {
+      const next = prev.map((c) => (c.id === id ? { ...c, ...fields } : c));
+      saveDeck(next);
+      return next;
+    });
+  }, []);
+
+  return { deck, streak, addCard, deleteCard, reportCard, touchStreak, updateCardMastery, patchCard };
 }

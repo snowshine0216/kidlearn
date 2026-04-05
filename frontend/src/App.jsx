@@ -8,6 +8,7 @@ import MascotMessage from './components/MascotMessage';
 import CardActions from './components/CardActions';
 import StatsRow from './components/StatsRow';
 import DeckView from './components/DeckView';
+import QuizMode from './components/QuizMode';
 
 export default function App() {
   const [lang, setLang] = useState(loadLang);
@@ -17,6 +18,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentSubject, setCurrentSubject] = useState('english'); // default: English
   const [showDeck, setShowDeck] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
 
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
@@ -26,7 +28,7 @@ export default function App() {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const { deck, streak, addCard, deleteCard, reportCard, touchStreak } = useDeck(showToast);
+  const { deck, streak, addCard, deleteCard, reportCard, touchStreak, updateCardMastery, patchCard } = useDeck(showToast);
 
   function handleLangToggle() {
     const next = lang === 'zh' ? 'en' : 'zh';
@@ -82,13 +84,15 @@ export default function App() {
         </div>
       )}
 
-      {/* inert disables keyboard/pointer interaction on background when DeckView is open */}
-      <div {...(showDeck ? { inert: '' } : {})}>
+      {/* inert disables keyboard/pointer interaction on background when DeckView or QuizMode is open */}
+      <div {...((showDeck || showQuiz) ? { inert: '' } : {})}>
         <TopBar
           t={t}
           streak={streak}
           onShowDeck={() => setShowDeck(true)}
           onLangToggle={handleLangToggle}
+          onStartQuiz={() => setShowQuiz(true)}
+          canStartQuiz={deck.length >= 5}
         />
 
         <main className="flex flex-1 gap-4 p-4 md:p-6 flex-col md:flex-row">
@@ -143,6 +147,18 @@ export default function App() {
           deck={deck}
           onDelete={deleteCard}
           onClose={() => setShowDeck(false)}
+          onStartQuiz={() => setShowQuiz(true)}
+        />
+      )}
+
+      {showQuiz && (
+        <QuizMode
+          t={t}
+          lang={lang}
+          deck={deck}
+          onClose={() => setShowQuiz(false)}
+          onUpdateMastery={(id, correct) => { updateCardMastery(id, correct); touchStreak(); }}
+          onPatchCard={patchCard}
         />
       )}
 

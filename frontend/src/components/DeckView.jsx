@@ -3,7 +3,7 @@ import { getTheme } from '../lib/colorThemes';
 
 const FILTER_IDS = ['all', 'english', 'chinese', 'math'];
 
-export default function DeckView({ t, deck, onDelete, onClose }) {
+export default function DeckView({ t, deck, onDelete, onClose, onStartQuiz }) {
   const [filter, setFilter] = useState('all');
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -33,14 +33,25 @@ export default function DeckView({ t, deck, onDelete, onClose }) {
         <h2 className="text-xl font-bold" style={{ fontFamily: '"Baloo 2", cursive', color: 'var(--color-primary-dark)' }}>
           {t.deckTitle(deck.length)}
         </h2>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold hover:opacity-75"
-          style={{ backgroundColor: 'var(--color-bg)' }}
-          aria-label={t.close}
-        >
-          {t.close}
-        </button>
+        <div className="flex items-center gap-2">
+          {deck.length >= 5 && onStartQuiz && (
+            <button
+              onClick={() => { onClose(); onStartQuiz(); }}
+              className="px-3 py-2 rounded-xl text-sm font-bold"
+              style={{ background: 'var(--color-warm-light)', color: 'var(--color-warm)' }}
+            >
+              {t.startQuiz}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold hover:opacity-75"
+            style={{ backgroundColor: 'var(--color-bg)' }}
+            aria-label={t.close}
+          >
+            {t.close}
+          </button>
+        </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6">

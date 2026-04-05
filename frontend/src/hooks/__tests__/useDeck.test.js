@@ -116,4 +116,40 @@ describe('useDeck', () => {
     act(() => { result.current.touchStreak(); });
     expect(result.current.streak.count).toBe(countAfterFirst);
   });
+
+  it('updateCardMastery updates mastery on the correct card and persists', () => {
+    const { result } = renderHook(() => useDeck());
+    act(() => { result.current.addCard(mockCard); });
+    const id = result.current.deck[0].id;
+    act(() => { result.current.updateCardMastery(id, true); });
+    const updated = result.current.deck[0];
+    expect(updated.mastery).toBe(1);
+    expect(updated.reviewCount).toBe(1);
+    expect(updated.lastReviewedAt).not.toBeNull();
+    const stored = JSON.parse(localStorage.getItem('starcards_deck'));
+    expect(stored[0].mastery).toBe(1);
+  });
+
+  it('updateCardMastery leaves other cards unchanged', () => {
+    const { result } = renderHook(() => useDeck());
+    act(() => { result.current.addCard(mockCard); });
+    act(() => { result.current.addCard({ ...mockCard, word: 'cat' }); });
+    const [id1] = result.current.deck.map((c) => c.id);
+    act(() => { result.current.updateCardMastery(id1, false); });
+    const unchanged = result.current.deck.find((c) => c.id !== id1);
+    expect(unchanged.mastery).toBeNull();
+  });
+
+  it('patchCard merges fields onto the correct card and persists', () => {
+    const { result } = renderHook(() => useDeck());
+    act(() => { result.current.addCard(mockCard); });
+    const id = result.current.deck[0].id;
+    act(() => { result.current.patchCard(id, { mnemonic: 'updated mnemonic', quizHints: { pronunciation: { encouragement: 'Good!' } } }); });
+    const updated = result.current.deck[0];
+    expect(updated.mnemonic).toBe('updated mnemonic');
+    expect(updated.quizHints.pronunciation.encouragement).toBe('Good!');
+    expect(updated.word).toBe('butterfly'); // existing fields preserved
+    const stored = JSON.parse(localStorage.getItem('starcards_deck'));
+    expect(stored[0].mnemonic).toBe('updated mnemonic');
+  });
 });
