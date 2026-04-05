@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // Each test gets a fresh module instance so audioCache is empty (no cross-test pollution).
 let speak;
 let speakCard;
+let speakCardFull;
 
 beforeEach(async () => {
   vi.resetModules();
@@ -16,6 +17,7 @@ beforeEach(async () => {
   const mod = await import('../speech.js');
   speak = mod.speak;
   speakCard = mod.speakCard;
+  speakCardFull = mod.speakCardFull;
 });
 
 afterEach(() => {
@@ -126,6 +128,142 @@ describe('speakCard', () => {
     global.fetch.mockResolvedValue({ ok: false });
 
     await speakCard('butterfly', '');
+
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+    setTimeoutSpy.mockRestore();
+  });
+});
+
+describe('speakCardFull', () => {
+  // Helper: invoke all registered setTimeout callbacks immediately
+  function flushTimers(setTimeoutSpy) {
+    setTimeoutSpy.mock.calls.forEach(([cb]) => cb());
+  }
+
+  it('English card: speaks word in en, schedules Chinese at 1400ms, pinyin at 3200ms', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    global.fetch.mockResolvedValue({ ok: false });
+
+    const card = { subject: 'english', word: 'butterfly', chinese: '蝴蝶', pinyin: 'hú dié' };
+    await speakCardFull(card);
+
+    // Immediate fetch: English word
+    const enCall = global.fetch.mock.calls.find(c => JSON.parse(c[1].body).lang === 'en');
+    expect(enCall).toBeTruthy();
+    expect(JSON.parse(enCall[1].body).text).toBe('butterfly');
+
+    // setTimeout delays
+    const delays = setTimeoutSpy.mock.calls.map(([, d]) => d);
+    expect(delays).toContain(1400);
+    expect(delays).toContain(3200);
+
+    // Fire callbacks and check Chinese + pinyin are fetched
+    flushTimers(setTimeoutSpy);
+    const zhCalls = global.fetch.mock.calls.filter(c => JSON.parse(c[1].body).lang === 'zh');
+    const texts = zhCalls.map(c => JSON.parse(c[1].body).text);
+    expect(texts).toContain('蝴蝶');
+    expect(texts).toContain('hú dié');
+
+    setTimeoutSpy.mockRestore();
+  });
+
+  it('English card (no chinese, has pinyin): schedules pinyin at 1400ms only', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    global.fetch.mockResolvedValue({ ok: false });
+
+    const card = { subject: 'english', word: 'butterfly', chinese: null, pinyin: 'hú dié' };
+    await speakCardFull(card);
+
+    const delays = setTimeoutSpy.mock.calls.map(([, d]) => d);
+    expect(delays).toContain(1400);
+    expect(delays).not.toContain(3200);
+
+    flushTimers(setTimeoutSpy);
+    const zhCalls = global.fetch.mock.calls.filter(c => JSON.parse(c[1].body).lang === 'zh');
+    expect(zhCalls).toHaveLength(1);
+    expect(JSON.parse(zhCalls[0][1].body).text).toBe('hú dié');
+
+    setTimeoutSpy.mockRestore();
+  });
+
+  it('English card (no chinese, no pinyin): no setTimeout calls', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    global.fetch.mockResolvedValue({ ok: false });
+
+    const card = { subject: 'english', word: 'butterfly', chinese: null, pinyin: null };
+    await speakCardFull(card);
+
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+    setTimeoutSpy.mockRestore();
+  });
+
+  it('Chinese card (2-syllable pinyin + word): correct schedule including English at end', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    global.fetch.mockResolvedValue({ ok: false });
+
+    const card = { subject: 'chinese', chinese: '苹果', word: 'apple', pinyin: 'píng guǒ' };
+    await speakCardFull(card);
+
+    // Immediate fetch: Chinese characters
+    const zhImmediate = global.fetch.mock.calls.find(c => JSON.parse(c[1].body).lang === 'zh');
+    expect(zhImmediate).toBeTruthy();
+    expect(JSON.parse(zhImmediate[1].body).text).toBe('苹果');
+
+    // Expected setTimeout delays:
+    // 900: full pinyin, 1600: syl 0, 2250: syl 1, 3100: English (offset=2900+200)
+    const delays = setTimeoutSpy.mock.calls.map(([, d]) => d);
+    expect(delays).toContain(900);   // full pinyin
+    expect(delays).toContain(1600);  // syllable 0
+    expect(delays).toContain(2250);  // syllable 1
+    expect(delays).toContain(3100);  // English word
+
+    // Fire callbacks and verify English is fetched
+    flushTimers(setTimeoutSpy);
+    const enCalls = global.fetch.mock.calls.filter(c => JSON.parse(c[1].body).lang === 'en');
+    expect(enCalls).toHaveLength(1);
+    expect(JSON.parse(enCalls[0][1].body).text).toBe('apple');
+
+    setTimeoutSpy.mockRestore();
+  });
+
+  it('Chinese card (has pinyin, no word): no English setTimeout', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    global.fetch.mockResolvedValue({ ok: false });
+
+    const card = { subject: 'chinese', chinese: '苹果', word: null, pinyin: 'píng guǒ' };
+    await speakCardFull(card);
+
+    flushTimers(setTimeoutSpy);
+    const enCalls = global.fetch.mock.calls.filter(c => JSON.parse(c[1].body).lang === 'en');
+    expect(enCalls).toHaveLength(0);
+
+    setTimeoutSpy.mockRestore();
+  });
+
+  it('Chinese card (no pinyin, has word): English scheduled at 1200ms', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    global.fetch.mockResolvedValue({ ok: false });
+
+    const card = { subject: 'chinese', chinese: '苹果', word: 'apple', pinyin: null };
+    await speakCardFull(card);
+
+    const delays = setTimeoutSpy.mock.calls.map(([, d]) => d);
+    expect(delays).toContain(1200);
+
+    flushTimers(setTimeoutSpy);
+    const enCalls = global.fetch.mock.calls.filter(c => JSON.parse(c[1].body).lang === 'en');
+    expect(enCalls).toHaveLength(1);
+    expect(JSON.parse(enCalls[0][1].body).text).toBe('apple');
+
+    setTimeoutSpy.mockRestore();
+  });
+
+  it('Chinese card (no pinyin, no word): no setTimeout calls', async () => {
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    global.fetch.mockResolvedValue({ ok: false });
+
+    const card = { subject: 'chinese', chinese: '苹果', word: null, pinyin: null };
+    await speakCardFull(card);
 
     expect(setTimeoutSpy).not.toHaveBeenCalled();
     setTimeoutSpy.mockRestore();
