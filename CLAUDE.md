@@ -4,6 +4,7 @@
 
 - `gh` is at `/opt/homebrew/bin/gh`
 - `bun` is at `/Users/snow/.bun/bin/bun`
+- `nvm` is used to mangage node 
 
 ---
 
