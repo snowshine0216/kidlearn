@@ -47,10 +47,15 @@ describe('FlashCard', () => {
     expect(document.querySelector('script')).toBeNull();
   });
 
-  it('shows self-report buttons', () => {
+  it('does not show self-report buttons (removed — cards auto-save)', () => {
     render(<FlashCard t={t} card={mockCard} isLoading={false} subject="english" />);
-    expect(screen.getByLabelText(t.iKnowIt)).toBeTruthy();
-    expect(screen.getByLabelText(t.notYet)).toBeTruthy();
+    expect(screen.queryByLabelText(t.iKnowIt)).toBeNull();
+    expect(screen.queryByLabelText(t.notYet)).toBeNull();
+  });
+
+  it('shows sentence audio button', () => {
+    render(<FlashCard t={t} card={mockCard} isLoading={false} subject="english" />);
+    expect(screen.getByLabelText('Read sentence aloud')).toBeTruthy();
   });
 
   it('shows 汉字 prominently for Chinese subject cards', () => {
