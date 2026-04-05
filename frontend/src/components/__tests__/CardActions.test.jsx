@@ -28,52 +28,29 @@ describe('CardActions', () => {
   });
 
   it('renders null when card is null', () => {
-    const { container } = render(<CardActions t={t} card={null} onSave={vi.fn()} isSaved={false} />);
+    const { container } = render(<CardActions t={t} card={null} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders Save and Hear buttons when card is present', () => {
-    render(<CardActions t={t} card={mockCard} onSave={vi.fn()} isSaved={false} />);
-    expect(screen.getByLabelText(t.saveToDeck)).toBeTruthy();
+  it('renders Hear button when card is present', () => {
+    render(<CardActions t={t} card={mockCard} />);
     expect(screen.getByLabelText(t.hearIt)).toBeTruthy();
   });
 
-  it('Save button shows saveToDeck label when not saved', () => {
-    render(<CardActions t={t} card={mockCard} onSave={vi.fn()} isSaved={false} />);
-    expect(screen.getByLabelText(t.saveToDeck)).toBeTruthy();
-  });
-
-  it('Save button shows saved label and is disabled when isSaved=true', () => {
-    render(<CardActions t={t} card={mockCard} onSave={vi.fn()} isSaved={true} />);
-    const btn = screen.getByLabelText(t.saved);
-    expect(btn).toBeTruthy();
-    expect(btn.disabled).toBe(true);
-  });
-
-  it('clicking Save calls onSave with the card', () => {
-    const onSave = vi.fn(() => true);
-    render(<CardActions t={t} card={mockCard} onSave={onSave} isSaved={false} />);
-    fireEvent.click(screen.getByLabelText(t.saveToDeck));
-    expect(onSave).toHaveBeenCalledWith(mockCard);
-  });
-
-  it('clicking Save does NOT call onSave when already saved', () => {
-    const onSave = vi.fn();
-    render(<CardActions t={t} card={mockCard} onSave={onSave} isSaved={true} />);
-    fireEvent.click(screen.getByLabelText(t.saved));
-    expect(onSave).not.toHaveBeenCalled();
+  it('does not render a save button (cards are auto-saved on generation)', () => {
+    const { container } = render(<CardActions t={t} card={mockCard} />);
+    expect(container.querySelector(`[aria-label="${t.saveToDeck}"]`)).toBeNull();
+    expect(container.querySelector(`[aria-label="${t.saved}"]`)).toBeNull();
   });
 
   it('clicking Hear calls speak with word and "en"', () => {
-    render(<CardActions t={t} card={mockCard} onSave={vi.fn()} isSaved={false} />);
+    render(<CardActions t={t} card={mockCard} />);
     fireEvent.click(screen.getByLabelText(t.hearIt));
     expect(speak).toHaveBeenCalledWith('butterfly', 'en');
   });
 
   it('Print button has hidden md:flex class (hidden on mobile)', () => {
-    const { container } = render(
-      <CardActions t={t} card={mockCard} onSave={vi.fn()} isSaved={false} />
-    );
+    const { container } = render(<CardActions t={t} card={mockCard} />);
     const printBtn = container.querySelector(`[aria-label="${t.print}"]`);
     expect(printBtn).not.toBeNull();
     expect(printBtn.className).toContain('hidden');
