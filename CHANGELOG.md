@@ -2,6 +2,16 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.2.1.0] - 2026-04-06
+
+### Changed
+- Cards now **auto-save** on generation — the 保存 (Save) button has been removed. Every generated card is immediately added to your deck with no extra tap required
+- Removed the 我会了 / 还不会 self-report buttons from the flashcard view, reducing UI clutter
+- Left sidebar now shows **Chinese characters** (汉字) for Chinese-subject cards instead of the English word
+
+### Added
+- **Sentence audio icon** — a 🔊 button appears in the sentence example box. Tapping it reads the English sentence aloud, then the Chinese translation after a short pause
+
 ## [0.2.0.0] - 2026-04-05
 
 ### Added
