@@ -57,6 +57,30 @@ describe('loadLang', () => {
   });
 });
 
+describe('quiz strings — chinese-meaning type', () => {
+  it('zh: quizPrompt.chineseMeaning exists and is a string', () => {
+    const t = getStrings('zh');
+    expect(typeof t.quizPrompt.chineseMeaning).toBe('string');
+    expect(t.quizPrompt.chineseMeaning.length).toBeGreaterThan(0);
+  });
+
+  it('en: quizPrompt.chineseMeaning exists and is a string', () => {
+    const t = getStrings('en');
+    expect(typeof t.quizPrompt.chineseMeaning).toBe('string');
+    expect(t.quizPrompt.chineseMeaning.length).toBeGreaterThan(0);
+  });
+
+  it('zh: quizModeLabels.chineseMeaning exists', () => {
+    const t = getStrings('zh');
+    expect(typeof t.quizModeLabels.chineseMeaning).toBe('string');
+  });
+
+  it('en: quizModeLabels.chineseMeaning exists', () => {
+    const t = getStrings('en');
+    expect(typeof t.quizModeLabels.chineseMeaning).toBe('string');
+  });
+});
+
 describe('saveLang', () => {
   beforeEach(() => {
     localStorage.clear();

@@ -41,7 +41,7 @@ Respond ONLY with this JSON:
 }
 
 const VALID_SUBJECTS = ['english', 'chinese', 'math'];
-const VALID_QUIZ_TYPES = ['pronunciation', 'fill-blank', 'word-meaning', 'reading'];
+const VALID_QUIZ_TYPES = ['pronunciation', 'fill-blank', 'word-meaning', 'reading', 'chinese-meaning'];
 
 // Simple in-memory rate limiter: 30 requests per IP per 60-second window.
 // Stored at module level so it persists across requests in the same warm instance.
