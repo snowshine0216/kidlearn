@@ -2,6 +2,13 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.2.4.0] - 2026-04-06
+
+### Added
+- **New quiz type: "Listen → Choose" (chinese-meaning)** — English-subject quizzes now include a round where the child hears the English word spoken aloud, sees the Chinese characters and pinyin, and picks the correct English word from three choices
+- **Inline memory tips on "Don't Know"** — when a child taps "Don't Know" in a self-report quiz round, the card reveal and AI memory tips (encouragement, example sentence, pronunciation guide) now appear together on the same page, instead of flashing the card briefly and auto-advancing; a "Got it" button lets the child advance when ready
+- **Memory tip audio** — the 🔊 button in the inline memory tips view speaks the mnemonic or encouragement text, not the full flashcard audio sequence
+
 ## [0.2.3.0] - 2026-04-06
 
 ### Fixed
