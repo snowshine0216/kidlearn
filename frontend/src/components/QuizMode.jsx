@@ -4,7 +4,7 @@ import { getQuizHint } from '../lib/quizHintApi';
 import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
 
-const EN_MODES = ['pronunciation', 'fill-blank', 'word-meaning'];
+const EN_MODES = ['pronunciation', 'fill-blank', 'word-meaning', 'chinese-meaning'];
 const ZH_MODES = ['reading'];
 const COUNT_OPTIONS = [5, 10, 20];
 const COUNTDOWN_OPTIONS = [
@@ -160,8 +160,9 @@ function QuizProgress({ current, total, t }) {
 
 // ─── QuizQuestion ─────────────────────────────────────────────────────────────
 
-function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
+function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
+  const memoryHint = card.quizHints?.[type] ?? null;
   const { showCountdown = false, countdownInterval = 30 } = settings ?? {};
   const [showHint, setShowHint] = useState(false);
   const [chosen, setChosen] = useState(null);
@@ -212,6 +213,13 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
     return () => clearTimeout(advanceTimer);
   }, [timeLeft, showCountdown, chosen, selfReportPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // chinese-meaning: auto-speak the English word when the question is shown
+  useEffect(() => {
+    if (type === 'chinese-meaning' && card.word) {
+      speak(card.word, 'en');
+    }
+  }, [card.id, type]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleChoice(c) {
     if (chosen) return;
     const correct = c.id === card.id;
@@ -219,12 +227,16 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
     setTimeout(() => onAnswer(correct, c.id), 600);
   }
 
-  // Self-report: show inline animation, speak audio, then advance after delay
+  // Self-report: show inline animation, speak audio.
+  // Correct: auto-advance after praise animation.
+  // Wrong: stay on page showing card + memory tips; user clicks "Got it" to advance.
   function handleSelfReport(correct) {
     if (selfReportPending !== null) return;
     setSelfReportPending(correct);
     speakCardFull(card);
-    setTimeout(() => onAnswer(correct, card.id), correct ? 1600 : 2400);
+    if (correct) {
+      setTimeout(() => onAnswer(correct, card.id), 1600);
+    }
   }
 
   const isSelfReport = type === 'pronunciation' || type === 'reading';
@@ -247,7 +259,7 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
       </p>
     </div>
   ) : selfReportPending === false ? (
-    /* Wrong — memory helper revealed */
+    /* Wrong — card reveal + full memory tips inline */
     <div
       className="quiz-memory-reveal rounded-3xl p-5 text-center"
       style={{ background: theme.bg }}
@@ -269,6 +281,38 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
           💡 {card.mnemonic}
         </p>
       )}
+
+      {/* AI memory tips */}
+      <div className="rounded-xl p-3 mt-3 text-left" style={{ background: 'var(--color-warm-light)' }}>
+        <p className="font-bold text-sm mb-2">{t.quizMemoryHelper}</p>
+        {hintLoading ? (
+          <div className="quiz-hint-skeleton" />
+        ) : memoryHint ? (
+          <>
+            <p className="text-sm mb-1">{memoryHint.encouragement}</p>
+            <p className="text-sm italic mb-1">{memoryHint.extraSentence}</p>
+            <p className="text-sm font-mono">{memoryHint.pronunciationGuide}</p>
+          </>
+        ) : null}
+        {/* 🔊 speaks the memory tip text, not the full card audio */}
+        <button
+          onClick={() => {
+            const text = card.mnemonic || memoryHint?.encouragement;
+            if (text) speak(text, 'zh');
+          }}
+          className="mt-2 text-xl"
+          aria-label="Speak memory tip"
+        >🔊</button>
+      </div>
+
+      {/* Got it — records wrong answer and advances directly, skipping feedback */}
+      <button
+        onClick={onSkipFeedback}
+        className="w-full mt-4 py-3 rounded-2xl font-bold text-lg"
+        style={{ background: 'var(--color-primary)', color: 'white' }}
+      >
+        {t.quizGotIt}
+      </button>
     </div>
   ) : (
     /* Normal card display */
@@ -282,6 +326,15 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
         <p className="card-word mt-2" style={{ color: theme.accent }}>{card.word}</p>
       ) : type === 'reading' ? (
         <p className="card-word mt-2 cjk-font" style={{ color: theme.accent }}>{card.chinese}</p>
+      ) : type === 'chinese-meaning' ? (
+        <>
+          <p className="cjk-font font-bold mt-2" style={{ fontSize: 52, color: theme.accent, lineHeight: 1.2 }}>
+            {card.chinese}
+          </p>
+          {card.pinyin && (
+            <p className="card-pinyin mt-1" style={{ color: 'var(--color-muted)' }}>{card.pinyin}</p>
+          )}
+        </>
       ) : (
         /* pronunciation — silent; child tries to say it first */
         <p className="card-word mt-2" style={{ color: theme.accent }}>{card.word}</p>
@@ -293,7 +346,12 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
     <div className="quiz-fade-in flex flex-col gap-4 p-4 max-w-sm mx-auto w-full">
       {/* Prompt */}
       <p className="text-lg font-bold text-center" style={{ color: 'var(--color-primary-dark)' }}>
-        {t.quizPrompt[type === 'fill-blank' ? 'fillBlank' : type === 'word-meaning' ? 'wordMeaning' : type]}
+        {t.quizPrompt[
+          type === 'fill-blank' ? 'fillBlank'
+          : type === 'word-meaning' ? 'wordMeaning'
+          : type === 'chinese-meaning' ? 'chineseMeaning'
+          : type
+        ]}
       </p>
 
       {cardDisplay}
@@ -380,7 +438,7 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
                 onClick={() => handleChoice(c)}
                 className={cls}
               >
-                {type === 'fill-blank' ? c.word : (
+                {type === 'fill-blank' || type === 'chinese-meaning' ? c.word : (
                   <span>
                     <span className="cjk-font" style={{ fontSize: 28 }}>{c.chinese}</span>
                     <span className="block text-sm" style={{ fontSize: 14 }}>{c.pinyin}</span>
@@ -642,6 +700,18 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
     }
   }
 
+  function handleSkipFeedback() {
+    const q = questions[currentIdx];
+    onUpdateMastery(q.card.id, false);
+    setResults(prev => [...prev, { cardId: q.card.id, card: q.card, type: q.type, correct: false }]);
+    if (isLast) {
+      setPhase('summary');
+    } else {
+      setCurrentIdx(i => i + 1);
+      setPhase('question');
+    }
+  }
+
   function handleRestart() {
     setPhase('lobby');
     setQuestions([]);
@@ -727,6 +797,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
               onAnswer={handleAnswer}
               hintLoading={hintLoadingSet.has(currentQuestion.card.id)}
               settings={quizSettings}
+              onSkipFeedback={handleSkipFeedback}
             />
           </>
         )}
