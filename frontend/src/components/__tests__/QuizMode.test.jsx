@@ -47,6 +47,11 @@ const DEFAULT_PROPS = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // jsdom doesn't implement matchMedia — stub it so confetti effects don't crash
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockReturnValue({ matches: false }),
+  });
 });
 
 // ─── Lobby ───────────────────────────────────────────────────────────────────
@@ -164,6 +169,27 @@ describe('QuizMode — Question phase', () => {
   });
 });
 
+// ─── Hint text size ──────────────────────────────────────────────────────────
+
+describe('QuizMode — Hint text', () => {
+  it('hint paragraph uses text-lg for readability', async () => {
+    const { container } = render(<QuizMode {...DEFAULT_PROPS} />);
+    const startBtn = screen.getByRole('button', { name: /start/i });
+    await act(async () => { fireEvent.click(startBtn); });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy();
+    }, { timeout: 3000 });
+
+    const hintBtn = screen.getByText(t.quizHintBtn);
+    await act(async () => { fireEvent.click(hintBtn); });
+
+    await waitFor(() => {
+      const hintPara = container.querySelector('p.text-lg.text-center');
+      expect(hintPara).toBeTruthy();
+    }, { timeout: 3000 });
+  });
+});
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 describe('QuizMode — Summary', () => {
@@ -173,6 +199,72 @@ describe('QuizMode — Summary', () => {
     expect(t.quizRestart).toBeTruthy();
     expect(t.quizBackToDeck).toBeTruthy();
   });
+});
+
+// ─── Retry Failed Cards ───────────────────────────────────────────────────────
+
+describe('QuizMode — Retry Failed Cards', () => {
+  const zhDeck = Array.from({ length: 8 }, (_, i) =>
+    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese' })
+  );
+
+  async function navigateToSummary(makeWrong = false) {
+    render(<QuizMode {...DEFAULT_PROPS} deck={zhDeck} />);
+    // Switch to Chinese subject (all reading mode = self-report, fully controllable)
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    // Answer 5 questions then click through feedback for each
+    for (let i = 0; i < 5; i++) {
+      // Wait for answer buttons (reading mode: quizKnowIt / quizDontKnow)
+      await waitFor(() => {
+        const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+        if (!ok) throw new Error('answer buttons not found');
+      }, { timeout: 5000 });
+
+      const correctBtn = screen.queryByText(t.quizKnowIt);
+      const wrongBtn = screen.queryByText(t.quizDontKnow);
+      await act(async () => {
+        fireEvent.click(makeWrong ? wrongBtn : correctBtn);
+      });
+
+      // Wait for feedback next button then click it
+      await waitFor(() => {
+        const btn = screen.queryByText(/next →|got it|see results/i);
+        if (!btn) throw new Error('feedback next button not found');
+      }, { timeout: 5000 });
+      const nextBtn = screen.queryByText(/next →|got it|see results/i);
+      await act(async () => { fireEvent.click(nextBtn); });
+    }
+
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizSummaryTitle)).toBeTruthy();
+    }, { timeout: 5000 });
+  }
+
+  it('quizRetryFailed string is defined in i18n', () => {
+    expect(t.quizRetryFailed).toBe('Review Missed Cards 🔁');
+  });
+
+  it('shows retry failed button when there are wrong answers', async () => {
+    await navigateToSummary(true);
+    expect(screen.queryByText(t.quizRetryFailed)).toBeTruthy();
+  }, 20000);
+
+  it('does not show retry failed button when all answers are correct', async () => {
+    await navigateToSummary(false);
+    expect(screen.queryByText(t.quizRetryFailed)).toBeFalsy();
+  }, 20000);
+
+  it('clicking retry failed transitions back to question phase', async () => {
+    await navigateToSummary(true);
+    const retryBtn = screen.getByText(t.quizRetryFailed);
+    await act(async () => { fireEvent.click(retryBtn); });
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizSummaryTitle)).toBeFalsy();
+      expect(screen.queryByText(/question \d+ of/i)).toBeTruthy();
+    }, { timeout: 3000 });
+  }, 20000);
 });
 
 // ─── Accessibility ────────────────────────────────────────────────────────────
