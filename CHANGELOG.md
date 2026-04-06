@@ -2,6 +2,17 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.0.0] - 2026-04-06
+
+### Added
+- **Retry missed cards** — quiz summary now shows a "Review Missed Cards" button when any answers were wrong; clicking it immediately re-drills only the failed cards without going back to the lobby
+
+### Changed
+- **Hint text larger** — the hint/pinyin text shown when tapping the hint button is now 18px (was 14px) for easier reading on smaller screens
+
+### Fixed
+- **Hint fetch after close** — card patch updates are now guarded by a mounted-ref check, preventing state writes to a parent deck after the quiz overlay is closed mid-session
+
 ## [0.2.3.0] - 2026-04-06
 
 ### Fixed

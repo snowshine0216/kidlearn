@@ -32,6 +32,9 @@
 
 ## Completed
 
+**Title:** Bigger hint text + retry missed cards in quiz
+**Completed:** v0.3.0.0 (2026-04-06)
+
 **Title:** Fix quiz hints to display in Simplified Chinese (简体中文)
 **Completed:** v0.2.3.0 (2026-04-06)
 
