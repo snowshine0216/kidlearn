@@ -49,7 +49,7 @@ Each card costs roughly ¥0.01–0.02 — a family app will stay well under ¥5/
 
 ```bash
 cd frontend
-npm run test        # run all tests once (188 tests)
+npm run test        # run all tests once (210 tests)
 npm run test:watch  # watch mode
 ```
 

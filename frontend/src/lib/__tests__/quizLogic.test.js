@@ -198,6 +198,42 @@ describe('buildFillBlankSentence', () => {
   });
 });
 
+// ─── buildQuestion ──────────────────────────────────────────────────────────
+
+describe('buildQuestion', () => {
+  it('chinese-meaning: creates choices array (multiple choice)', () => {
+    const card = makeCard({ id: 'c1', chinese: '蝴蝶', pinyin: 'hú dié' });
+    const deck = makeDeck(5);
+    const q = buildQuestion(card, deck, 'chinese-meaning');
+    expect(q.type).toBe('chinese-meaning');
+    expect(Array.isArray(q.choices)).toBe(true);
+    expect(q.choices.length).toBe(3);
+    expect(q.choices.some(c => c.id === card.id)).toBe(true);
+  });
+
+  it('chinese-meaning: sentenceWithBlank is null', () => {
+    const card = makeCard({ id: 'c1' });
+    const deck = makeDeck(5);
+    const q = buildQuestion(card, deck, 'chinese-meaning');
+    expect(q.sentenceWithBlank).toBeNull();
+  });
+
+  it('fill-blank: creates choices array', () => {
+    const card = makeCard({ id: 'c1', sentence: 'The <em>butterfly</em> flies.' });
+    const deck = makeDeck(5);
+    const q = buildQuestion(card, deck, 'fill-blank');
+    expect(q.type).toBe('fill-blank');
+    expect(Array.isArray(q.choices)).toBe(true);
+  });
+
+  it('pronunciation: choices is null', () => {
+    const card = makeCard({ id: 'c1' });
+    const deck = makeDeck(5);
+    const q = buildQuestion(card, deck, 'pronunciation');
+    expect(q.choices).toBeNull();
+  });
+});
+
 // ─── buildHint ──────────────────────────────────────────────────────────────
 
 describe('buildHint', () => {
@@ -231,6 +267,19 @@ describe('buildHint', () => {
     const card = makeZhCard({ pinyin: 'píng guǒ' });
     const hint = buildHint(card, 'reading');
     expect(hint).toContain('píng guǒ');
+  });
+
+  it('chinese-meaning: returns pinyin of the card', () => {
+    const card = makeCard({ pinyin: 'hú dié' });
+    const hint = buildHint(card, 'chinese-meaning');
+    expect(typeof hint).toBe('string');
+    expect(hint).toContain('hú dié');
+  });
+
+  it('chinese-meaning: returns empty string when no pinyin', () => {
+    const card = makeCard({ pinyin: null });
+    const hint = buildHint(card, 'chinese-meaning');
+    expect(hint).toBe('');
   });
 });
 
@@ -352,6 +401,17 @@ describe('buildQuestions', () => {
       expect(q).toHaveProperty('type');
       expect(q).toHaveProperty('hint');
     });
+  });
+
+  it('distributes chinese-meaning in round-robin with other modes', () => {
+    const cards = makeDeck(4);
+    const modes = ['pronunciation', 'chinese-meaning'];
+    const result = buildQuestions(cards, cards, modes);
+    const types = result.map(q => q.type);
+    expect(types[0]).toBe('pronunciation');
+    expect(types[1]).toBe('chinese-meaning');
+    expect(types[2]).toBe('pronunciation');
+    expect(types[3]).toBe('chinese-meaning');
   });
 });
 

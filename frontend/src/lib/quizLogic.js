@@ -104,6 +104,8 @@ export function buildHint(card, type) {
       return card.pinyin ?? '';
     case 'reading':
       return card.pinyin ?? '';
+    case 'chinese-meaning':
+      return card.pinyin ?? '';
     default:
       return '';
   }
@@ -124,7 +126,7 @@ export function buildQuestion(card, deck, type) {
   }
 
   const choices =
-    resolvedType === 'fill-blank' || resolvedType === 'word-meaning'
+    resolvedType === 'fill-blank' || resolvedType === 'word-meaning' || resolvedType === 'chinese-meaning'
       ? shuffled([card, ...pickWrongAnswers(card, deck, 2)])
       : null;
 
