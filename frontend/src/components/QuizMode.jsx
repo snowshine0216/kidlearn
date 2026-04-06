@@ -321,7 +321,7 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings }) {
             {t.quizHintBtn}
           </button>
           {showHint && (
-            <p className="text-sm text-center px-4 py-2 rounded-xl" style={{ background: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
+            <p className="text-lg text-center px-4 py-2 rounded-xl" style={{ background: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
               {hintLoading ? '...' : hint}
             </p>
           )}
@@ -479,7 +479,7 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast 
 
 // ─── QuizSummary ──────────────────────────────────────────────────────────────
 
-function QuizSummary({ results, t, onRestart, onClose }) {
+function QuizSummary({ results, t, onRestart, onRetryFailed, onClose }) {
   const score = computeSessionScore(results);
   const isPerfect = score.correct === score.total && score.total > 0;
 
@@ -529,6 +529,15 @@ function QuizSummary({ results, t, onRestart, onClose }) {
       >
         {t.quizRestart}
       </button>
+      {score.weakCards.length > 0 && (
+        <button
+          onClick={() => onRetryFailed(score.weakCards)}
+          className="w-full py-4 rounded-2xl font-bold text-xl"
+          style={{ background: 'var(--color-coral)', color: 'white' }}
+        >
+          {t.quizRetryFailed}
+        </button>
+      )}
       <button
         onClick={onClose}
         className="text-sm"
@@ -598,7 +607,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
         // Merge all patch fields into a single call to avoid race between two setDeck updates
         const patch = { quizHints: newHints };
         if (hint.mnemonic && !card.mnemonic) patch.mnemonic = hint.mnemonic;
-        onPatchCard(card.id, patch);
+        if (mountedRef.current) onPatchCard(card.id, patch);
         // Update frozen questions array so QuizFeedback sees new hints without re-selecting from deck
         if (mountedRef.current) {
           setQuestions(prev => prev.map(q =>
@@ -640,6 +649,46 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
     setCurrentIdx(0);
     setLastCorrect(null);
     setHintLoadingSet(new Set());
+  }
+
+  async function handleRetryFailed(weakCards) {
+    const subject = weakCards[0]?.subject ?? 'chinese';
+    const modes = subject === 'english' ? EN_MODES : ZH_MODES;
+    const built = buildQuestions(weakCards, deck, modes);
+
+    setQuestions(built);
+    setCurrentIdx(0);
+    setResults([]);
+    setLastCorrect(null);
+    setQuizSettings({ showCountdown: false, countdownInterval: 30 });
+    setHintLoadingSet(new Set(built.map(q => q.card.id)));
+    setPhase('question');
+
+    async function fetchHintForQuestion(q) {
+      const { card, type } = q;
+      if (card.quizHints?.[type]) {
+        setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
+        return;
+      }
+      const hint = await getQuizHint({ word: card.word, chinese: card.chinese, pinyin: card.pinyin, subject: card.subject, type, hasMnemonic: !!card.mnemonic });
+      if (hint) {
+        const newHints = { ...(card.quizHints ?? {}), [type]: hint };
+        const patch = { quizHints: newHints };
+        if (hint.mnemonic && !card.mnemonic) patch.mnemonic = hint.mnemonic;
+        if (mountedRef.current) onPatchCard(card.id, patch);
+        if (mountedRef.current) {
+          setQuestions(prev => prev.map(q => q.card.id === card.id ? { ...q, card: { ...q.card, ...patch, quizHints: newHints } } : q));
+        }
+      }
+      if (mountedRef.current) {
+        setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
+      }
+    }
+
+    const eager = built.slice(0, PREFETCH_EAGER);
+    const rest = built.slice(PREFETCH_EAGER);
+    await Promise.allSettled(eager.map(fetchHintForQuestion));
+    Promise.allSettled(rest.map(fetchHintForQuestion));
   }
 
   return (
@@ -700,6 +749,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
             results={results}
             t={t}
             onRestart={handleRestart}
+            onRetryFailed={handleRetryFailed}
             onClose={onClose}
           />
         )}
