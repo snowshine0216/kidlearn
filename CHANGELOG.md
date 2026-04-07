@@ -2,6 +2,12 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.1.0] - 2026-04-07
+
+### Fixed
+- **Quiz TTS — "Listen → Choose" speaks Chinese, not English** — the `chinese-meaning` quiz type now speaks the Chinese word (`zh`) when the question loads, so the child hears the meaning they are learning rather than hearing the answer
+- **Correct MCQ answer stays on question page** — answering a multiple-choice question correctly no longer navigates away immediately; a celebration overlay appears on the same page with a Next button and auto-advances after 3 seconds
+
 ## [0.3.0.0] - 2026-04-06
 
 ### Added

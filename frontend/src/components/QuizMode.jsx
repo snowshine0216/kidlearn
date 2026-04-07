@@ -160,12 +160,13 @@ function QuizProgress({ current, total, t }) {
 
 // ─── QuizQuestion ─────────────────────────────────────────────────────────────
 
-function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback }) {
+function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, isLast }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
   const memoryHint = card.quizHints?.[type] ?? null;
   const { showCountdown = false, countdownInterval = 30 } = settings ?? {};
   const [showHint, setShowHint] = useState(false);
   const [chosen, setChosen] = useState(null);
+  const [celebrateCorrect, setCelebrateCorrect] = useState(null); // chosen card id when correct MCQ
   const [timeLeft, setTimeLeft] = useState(countdownInterval);
   const [showReminder, setShowReminder] = useState(false);
   // null = unanswered; true = 我会了 clicked; false = 还不会 clicked
@@ -213,18 +214,29 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
     return () => clearTimeout(advanceTimer);
   }, [timeLeft, showCountdown, chosen, selfReportPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // chinese-meaning: auto-speak the English word when the question is shown
+  // chinese-meaning: speak the Chinese meaning so the child listens and picks the English word
   useEffect(() => {
-    if (type === 'chinese-meaning' && card.word) {
-      speak(card.word, 'en');
+    if (type === 'chinese-meaning' && card.chinese) {
+      speak(card.chinese, 'zh');
     }
   }, [card.id, type]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Correct MCQ: auto-advance after 3 seconds
+  useEffect(() => {
+    if (celebrateCorrect === null) return;
+    const timer = setTimeout(() => onAnswer(true, celebrateCorrect), 3000);
+    return () => clearTimeout(timer);
+  }, [celebrateCorrect]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleChoice(c) {
     if (chosen) return;
     const correct = c.id === card.id;
     setChosen(c.id);
-    setTimeout(() => onAnswer(correct, c.id), 600);
+    if (correct) {
+      setCelebrateCorrect(c.id);
+    } else {
+      setTimeout(() => onAnswer(false, c.id), 600);
+    }
   }
 
   // Self-report: show inline animation, speak audio.
@@ -447,6 +459,31 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Correct MCQ celebration overlay — stays on question page, auto-advances after 3s */}
+      {celebrateCorrect !== null && (
+        <div
+          className="quiz-praise-pop fixed inset-0 z-20 flex flex-col items-center justify-center gap-4 p-6"
+          style={{ background: 'rgba(255,255,255,0.95)', backgroundColor: 'var(--color-bg, rgba(255,255,255,0.95))' }}
+        >
+          <div className="relative inline-block">
+            <span className="text-6xl">{card.emoji}</span>
+            <span className="absolute -top-4 -right-2 text-2xl quiz-star-1">⭐</span>
+            <span className="absolute -top-6 left-1 text-xl quiz-star-2">✨</span>
+            <span className="absolute -top-3 -left-5 text-2xl quiz-star-3">🌟</span>
+          </div>
+          <p className="text-3xl font-bold" style={{ color: 'var(--color-accent)' }}>
+            {t.quizCorrectBanner}
+          </p>
+          <button
+            onClick={() => onAnswer(true, celebrateCorrect)}
+            className="w-full max-w-xs py-4 rounded-2xl font-bold text-xl"
+            style={{ background: 'var(--color-primary)', color: 'white' }}
+          >
+            {isLast ? t.quizFinish : t.quizNext}
+          </button>
         </div>
       )}
     </div>
@@ -688,7 +725,18 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
     onUpdateMastery(q.card.id, correct);
     setLastCorrect(correct);
     setResults(prev => [...prev, { cardId: q.card.id, card: q.card, type: q.type, correct }]);
-    setPhase('feedback');
+    const isMcq = q.type !== 'pronunciation' && q.type !== 'reading';
+    if (correct && isMcq) {
+      // Celebration was shown inline in QuizQuestion; skip feedback, go directly to next
+      if (isLast) {
+        setPhase('summary');
+      } else {
+        setCurrentIdx(i => i + 1);
+        setPhase('question');
+      }
+    } else {
+      setPhase('feedback');
+    }
   }
 
   function handleNext() {
@@ -798,6 +846,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
               hintLoading={hintLoadingSet.has(currentQuestion.card.id)}
               settings={quizSettings}
               onSkipFeedback={handleSkipFeedback}
+              isLast={isLast}
             />
           </>
         )}
