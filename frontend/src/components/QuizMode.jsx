@@ -160,7 +160,7 @@ function QuizProgress({ current, total, t }) {
 
 // ─── QuizQuestion ─────────────────────────────────────────────────────────────
 
-function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, isLast }) {
+function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, onCorrectSelfReport, isLast }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
   const memoryHint = card.quizHints?.[type] ?? null;
   const { showCountdown = false, countdownInterval = 30 } = settings ?? {};
@@ -240,14 +240,14 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
   }
 
   // Self-report: show inline animation, speak audio.
-  // Correct: auto-advance after praise animation.
+  // Correct: auto-advance after praise animation (skip feedback page).
   // Wrong: stay on page showing card + memory tips; user clicks "Got it" to advance.
   function handleSelfReport(correct) {
     if (selfReportPending !== null) return;
     setSelfReportPending(correct);
     speakCardFull(card);
     if (correct) {
-      setTimeout(() => onAnswer(correct, card.id), 1600);
+      setTimeout(() => onCorrectSelfReport(), 1600);
     }
   }
 
@@ -356,15 +356,16 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
 
   return (
     <div className="quiz-fade-in flex flex-col gap-4 p-4 max-w-sm mx-auto w-full">
-      {/* Prompt */}
-      <p className="text-lg font-bold text-center" style={{ color: 'var(--color-primary-dark)' }}>
-        {t.quizPrompt[
-          type === 'fill-blank' ? 'fillBlank'
-          : type === 'word-meaning' ? 'wordMeaning'
-          : type === 'chinese-meaning' ? 'chineseMeaning'
-          : type
-        ]}
-      </p>
+      {/* Prompt — hidden for chinese-meaning (card speaks for itself) */}
+      {type !== 'chinese-meaning' && (
+        <p className="text-lg font-bold text-center" style={{ color: 'var(--color-primary-dark)' }}>
+          {t.quizPrompt[
+            type === 'fill-blank' ? 'fillBlank'
+            : type === 'word-meaning' ? 'wordMeaning'
+            : type
+          ]}
+        </p>
+      )}
 
       {cardDisplay}
 
@@ -810,6 +811,18 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
     }
   }
 
+  function handleCorrectSelfReport() {
+    const q = questions[currentIdx];
+    onUpdateMastery(q.card.id, true);
+    setResults(prev => [...prev, { cardId: q.card.id, card: q.card, type: q.type, correct: true }]);
+    if (isLast) {
+      setPhase('summary');
+    } else {
+      setCurrentIdx(i => i + 1);
+      setPhase('question');
+    }
+  }
+
   function handleRestart() {
     setPhase('lobby');
     setQuestions([]);
@@ -896,6 +909,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
               hintLoading={hintLoadingSet.has(currentQuestion.card.id)}
               settings={quizSettings}
               onSkipFeedback={handleSkipFeedback}
+              onCorrectSelfReport={handleCorrectSelfReport}
               isLast={isLast}
             />
           </>

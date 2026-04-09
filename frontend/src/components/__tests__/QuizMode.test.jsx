@@ -214,7 +214,7 @@ describe('QuizMode — Retry Failed Cards', () => {
     await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
 
-    // Answer 5 questions then click through feedback for each
+    // Answer 5 questions then advance for each
     for (let i = 0; i < 5; i++) {
       // Wait for answer buttons (reading mode: quizKnowIt / quizDontKnow)
       await waitFor(() => {
@@ -222,19 +222,27 @@ describe('QuizMode — Retry Failed Cards', () => {
         if (!ok) throw new Error('answer buttons not found');
       }, { timeout: 5000 });
 
-      const correctBtn = screen.queryByText(t.quizKnowIt);
-      const wrongBtn = screen.queryByText(t.quizDontKnow);
-      await act(async () => {
-        fireEvent.click(makeWrong ? wrongBtn : correctBtn);
-      });
-
-      // Wait for feedback next button then click it
-      await waitFor(() => {
-        const btn = screen.queryByText(/next →|got it|see results/i);
-        if (!btn) throw new Error('feedback next button not found');
-      }, { timeout: 5000 });
-      const nextBtn = screen.queryByText(/next →|got it|see results/i);
-      await act(async () => { fireEvent.click(nextBtn); });
+      if (makeWrong) {
+        await act(async () => { fireEvent.click(screen.queryByText(t.quizDontKnow)); });
+        // Wrong: inline memory tips → "Got it" button — click it
+        await waitFor(() => {
+          if (!screen.queryByText(t.quizGotIt)) throw new Error('got it button not found');
+        }, { timeout: 5000 });
+        await act(async () => { fireEvent.click(screen.queryByText(t.quizGotIt)); });
+      } else {
+        // Capture current progress before clicking so we can detect the advance
+        const beforeProgress = screen.queryByText(/question \d+ of/i)?.textContent;
+        await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
+        // Correct: auto-advances after ~1600ms praise animation (no feedback page)
+        await waitFor(() => {
+          const summary = screen.queryByText(t.quizSummaryTitle);
+          if (summary) return;
+          const newProgress = screen.queryByText(/question \d+ of/i)?.textContent;
+          if (!newProgress || newProgress === beforeProgress) {
+            throw new Error('question has not advanced yet');
+          }
+        }, { timeout: 5000 });
+      }
     }
 
     await waitFor(() => {

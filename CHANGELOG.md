@@ -2,6 +2,12 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.3.0] - 2026-04-09
+
+### Fixed
+- **Self-report questions auto-advance** — clicking "I know it" (会！我会读 🗣️ or 我说出来啦！✅) now skips the feedback page and advances to the next question automatically after a brief praise animation, matching the behavior for wrong self-report answers
+- **"Listen → Choose" prompt removed** — the instruction text "听一听，选出正确的英文单词" no longer appears above the card; the card plays the Chinese audio automatically so the prompt is unnecessary
+
 ## [0.3.2.0] - 2026-04-09
 
 ### Added
