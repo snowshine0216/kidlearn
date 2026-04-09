@@ -5,7 +5,7 @@ import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
 
 const EN_MODES = ['pronunciation', 'fill-blank', 'word-meaning', 'chinese-meaning'];
-const ZH_MODES = ['reading'];
+const ZH_MODES = ['reading', 'zh-fill-blank', 'zh-pinyin'];
 const COUNT_OPTIONS = [5, 10, 20];
 const COUNTDOWN_OPTIONS = [
   { seconds: 30, label: '30s' },
@@ -335,6 +335,12 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
             <p className="card-pinyin mt-1" style={{ color: 'var(--color-muted)' }}>{card.pinyin}</p>
           )}
         </>
+      ) : type === 'zh-fill-blank' ? (
+        <p className="text-2xl font-bold mt-2 cjk-font" style={{ color: 'var(--color-text)' }}>
+          {sentenceWithBlank}
+        </p>
+      ) : type === 'zh-pinyin' ? (
+        <p className="card-word mt-2 cjk-font" style={{ color: theme.accent }}>{card.chinese}</p>
       ) : (
         /* pronunciation — silent; child tries to say it first */
         <p className="card-word mt-2" style={{ color: theme.accent }}>{card.word}</p>
@@ -350,6 +356,8 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
           type === 'fill-blank' ? 'fillBlank'
           : type === 'word-meaning' ? 'wordMeaning'
           : type === 'chinese-meaning' ? 'chineseMeaning'
+          : type === 'zh-fill-blank' ? 'zhFillBlank'
+          : type === 'zh-pinyin' ? 'zhPinyin'
           : type
         ]}
       </p>
@@ -438,12 +446,18 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
                 onClick={() => handleChoice(c)}
                 className={cls}
               >
-                {type === 'fill-blank' || type === 'chinese-meaning' ? c.word : (
-                  <span>
-                    <span className="cjk-font" style={{ fontSize: 28 }}>{c.chinese}</span>
-                    <span className="block text-sm" style={{ fontSize: 14 }}>{c.pinyin}</span>
-                  </span>
-                )}
+                {type === 'fill-blank' || type === 'chinese-meaning'
+                  ? c.word
+                  : type === 'zh-fill-blank'
+                  ? <span className="cjk-font" style={{ fontSize: 24 }}>{c.chinese}</span>
+                  : type === 'zh-pinyin'
+                  ? c.pinyin
+                  : (
+                    <span>
+                      <span className="cjk-font" style={{ fontSize: 28 }}>{c.chinese}</span>
+                      <span className="block text-sm" style={{ fontSize: 14 }}>{c.pinyin}</span>
+                    </span>
+                  )}
               </button>
             );
           })}

@@ -204,8 +204,10 @@ describe('QuizMode — Summary', () => {
 // ─── Retry Failed Cards ───────────────────────────────────────────────────────
 
 describe('QuizMode — Retry Failed Cards', () => {
+  // pinyin: null so zh-pinyin falls back to reading (self-report); no sentence_zh so zh-fill-blank also falls back.
+  // This keeps the test focused on retry-failed-cards logic using self-report questions.
   const zhDeck = Array.from({ length: 8 }, (_, i) =>
-    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese' })
+    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese', pinyin: null, sentence_zh: null })
   );
 
   async function navigateToSummary(makeWrong = false) {
