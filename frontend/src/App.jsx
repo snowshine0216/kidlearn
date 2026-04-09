@@ -19,6 +19,7 @@ export default function App() {
   const [currentSubject, setCurrentSubject] = useState('english'); // default: English
   const [showDeck, setShowDeck] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [quizDueOnly, setQuizDueOnly] = useState(false);
 
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
@@ -111,7 +112,12 @@ export default function App() {
               </>
             )}
 
-            <StatsRow t={t} count={deck.length} dueCount={dueCount} />
+            <StatsRow
+              t={t}
+              count={deck.length}
+              dueCount={dueCount}
+              onDueClick={dueCount > 0 ? () => { setQuizDueOnly(true); setShowQuiz(true); } : undefined}
+            />
           </div>
         </main>
 
@@ -141,7 +147,8 @@ export default function App() {
           t={t}
           lang={lang}
           deck={deck}
-          onClose={() => setShowQuiz(false)}
+          dueOnly={quizDueOnly}
+          onClose={() => { setShowQuiz(false); setQuizDueOnly(false); }}
           onUpdateMastery={(id, correct) => { updateCardMastery(id, correct); touchStreak(); }}
           onPatchCard={patchCard}
         />

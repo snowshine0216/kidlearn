@@ -2,6 +2,11 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.2.0] - 2026-04-09
+
+### Added
+- **Clickable "due for review" chip** — tapping the "🔔 N cards due for review" chip on the home screen now immediately launches a quiz of only those due cards, skipping the lobby; mixed english/chinese due cards are both included
+
 ## [0.3.1.0] - 2026-04-07
 
 ### Fixed

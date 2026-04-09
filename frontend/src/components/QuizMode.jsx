@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult } from '../lib/quizLogic';
+import { buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, shuffled } from '../lib/quizLogic';
 import { getQuizHint } from '../lib/quizHintApi';
 import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
@@ -646,7 +646,7 @@ function QuizSummary({ results, t, onRestart, onRetryFailed, onClose }) {
 
 // ─── QuizMode (root) ──────────────────────────────────────────────────────────
 
-export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPatchCard }) {
+export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPatchCard, dueOnly = false }) {
   const [phase, setPhase] = useState('lobby');
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -659,6 +659,56 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   useEffect(() => {
     return () => { mountedRef.current = false; };
   }, []);
+
+  // Auto-start with all due cards when dueOnly=true — skips the lobby entirely
+  useEffect(() => {
+    if (!dueOnly) return;
+    const now = Date.now();
+    const isDue = c => c.nextReviewAt != null && c.nextReviewAt <= now;
+    const dueCards = deck.filter(isDue);
+    if (dueCards.length === 0) return; // no due cards → fall back to lobby
+
+    const english = shuffled(dueCards.filter(c => c.subject === 'english'));
+    const chinese = shuffled(dueCards.filter(c => c.subject === 'chinese'));
+    const built = shuffled([
+      ...buildQuestions(english, deck, EN_MODES),
+      ...buildQuestions(chinese, deck, ZH_MODES),
+    ]);
+
+    setQuestions(built);
+    setHintLoadingSet(new Set(built.map(q => q.card.id)));
+    setPhase('question');
+
+    const eager = built.slice(0, PREFETCH_EAGER);
+    const rest = built.slice(PREFETCH_EAGER);
+
+    async function fetchHint(q) {
+      const { card, type } = q;
+      if (card.quizHints?.[type]) {
+        if (mountedRef.current) setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
+        return;
+      }
+      const hint = await getQuizHint({
+        word: card.word, chinese: card.chinese, pinyin: card.pinyin,
+        subject: card.subject, type, hasMnemonic: !!card.mnemonic,
+      });
+      if (hint && mountedRef.current) {
+        const newHints = { ...(card.quizHints ?? {}), [type]: hint };
+        const patch = { quizHints: newHints };
+        if (hint.mnemonic && !card.mnemonic) patch.mnemonic = hint.mnemonic;
+        onPatchCard(card.id, patch);
+        setQuestions(prev => prev.map(q =>
+          q.card.id === card.id ? { ...q, card: { ...q.card, ...patch, quizHints: newHints } } : q
+        ));
+      }
+      if (mountedRef.current) {
+        setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
+      }
+    }
+
+    Promise.allSettled(eager.map(fetchHint));
+    Promise.allSettled(rest.map(fetchHint));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentQuestion = questions[currentIdx] ?? null;
   const isLast = currentIdx === questions.length - 1;
@@ -785,7 +835,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
     async function fetchHintForQuestion(q) {
       const { card, type } = q;
       if (card.quizHints?.[type]) {
-        setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
+        if (mountedRef.current) setHintLoadingSet(prev => { const s = new Set(prev); s.delete(card.id); return s; });
         return;
       }
       const hint = await getQuizHint({ word: card.word, chinese: card.chinese, pinyin: card.pinyin, subject: card.subject, type, hasMnemonic: !!card.mnemonic });
