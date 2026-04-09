@@ -86,6 +86,18 @@ export function buildFillBlankSentence(card) {
   });
 }
 
+// ─── buildZhFillBlankSentence ────────────────────────────────────────────────
+
+/**
+ * Replaces the FIRST occurrence of card.chinese in card.sentence_zh with ___.
+ * Returns '' if sentence_zh or card.chinese is null/undefined.
+ */
+export function buildZhFillBlankSentence(card) {
+  const sentence = card.sentence_zh ?? '';
+  if (!sentence || !card.chinese) return '';
+  return sentence.replace(card.chinese, '___');
+}
+
 // ─── buildHint ───────────────────────────────────────────────────────────────
 
 /**
@@ -106,6 +118,10 @@ export function buildHint(card, type) {
       return card.pinyin ?? '';
     case 'chinese-meaning':
       return card.pinyin ?? '';
+    case 'zh-fill-blank':
+      return card.pinyin ?? '';
+    case 'zh-pinyin':
+      return card.word ?? '';
     default:
       return '';
   }
@@ -125,8 +141,20 @@ export function buildQuestion(card, deck, type) {
     if (!hasFillBlank) resolvedType = 'word-meaning';
   }
 
+  if (type === 'zh-fill-blank') {
+    const hasZhSentence = card.sentence_zh && card.chinese &&
+      card.sentence_zh.includes(card.chinese);
+    if (!hasZhSentence) resolvedType = 'reading';
+  }
+
+  if (type === 'zh-pinyin') {
+    if (!card.pinyin?.trim()) resolvedType = 'reading';
+  }
+
   const choices =
-    resolvedType === 'fill-blank' || resolvedType === 'word-meaning' || resolvedType === 'chinese-meaning'
+    resolvedType === 'fill-blank' || resolvedType === 'word-meaning' ||
+    resolvedType === 'chinese-meaning' || resolvedType === 'zh-fill-blank' ||
+    resolvedType === 'zh-pinyin'
       ? shuffled([card, ...pickWrongAnswers(card, deck, 2)])
       : null;
 
@@ -137,7 +165,8 @@ export function buildQuestion(card, deck, type) {
     choices,
     correctId: card.id,
     sentenceWithBlank:
-      resolvedType === 'fill-blank' ? buildFillBlankSentence(card) : null,
+      resolvedType === 'fill-blank' ? buildFillBlankSentence(card) :
+      resolvedType === 'zh-fill-blank' ? buildZhFillBlankSentence(card) : null,
   };
 }
 
