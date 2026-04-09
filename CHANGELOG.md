@@ -2,6 +2,13 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.3.0] - 2026-04-09
+
+### Added
+- **Chinese fill-in-the-blank (填空题)** — Chinese-subject quizzes now include a round where a sentence in Chinese appears with the target character blanked out; the child picks the correct character from three choices
+- **Chinese pinyin choice (选择拼音题)** — Chinese-subject quizzes now include a round where the Chinese character is shown and the child picks the correct pinyin from three choices
+- Both new types fall back gracefully to the existing self-report reading round if a card lacks the required data (`sentence_zh` or `pinyin`)
+
 ## [0.3.2.0] - 2026-04-09
 
 ### Added
