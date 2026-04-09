@@ -290,3 +290,30 @@ describe('QuizMode — Callbacks', () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+// ─── dueOnly mode ─────────────────────────────────────────────────────────────
+
+describe('QuizMode — dueOnly mode', () => {
+  it('skips lobby and starts quiz immediately when dueOnly=true', async () => {
+    const now = Date.now();
+    const dueCard = makeCard({ id: 'due-1', mastery: 1, nextReviewAt: now - 1000 });
+    const deck = [dueCard, ...makeDeck(7)];
+    render(<QuizMode {...DEFAULT_PROPS} deck={deck} dueOnly />);
+    // No Start button — lobby is skipped
+    expect(screen.queryByRole('button', { name: /start/i })).toBeNull();
+    // Question phase appears
+    await waitFor(() => expect(screen.getByText(/question 1/i)).toBeTruthy(), { timeout: 3000 });
+  });
+
+  it('falls back to lobby when dueOnly=true but no due cards exist', () => {
+    // makeDeck cards have nextReviewAt: undefined — not due
+    render(<QuizMode {...DEFAULT_PROPS} dueOnly />);
+    expect(screen.getByRole('button', { name: /start/i })).toBeTruthy();
+  });
+
+  it('shows lobby normally when dueOnly is not set', () => {
+    render(<QuizMode {...DEFAULT_PROPS} />);
+    expect(screen.getByRole('button', { name: /start/i })).toBeTruthy();
+  });
+});
+
