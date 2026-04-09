@@ -216,7 +216,7 @@ describe('QuizMode — Retry Failed Cards', () => {
     await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
 
-    // Answer 5 questions then click through feedback for each
+    // Answer 5 questions then advance for each
     for (let i = 0; i < 5; i++) {
       // Wait for answer buttons (reading mode: quizKnowIt / quizDontKnow)
       await waitFor(() => {
@@ -224,19 +224,27 @@ describe('QuizMode — Retry Failed Cards', () => {
         if (!ok) throw new Error('answer buttons not found');
       }, { timeout: 5000 });
 
-      const correctBtn = screen.queryByText(t.quizKnowIt);
-      const wrongBtn = screen.queryByText(t.quizDontKnow);
-      await act(async () => {
-        fireEvent.click(makeWrong ? wrongBtn : correctBtn);
-      });
-
-      // Wait for feedback next button then click it
-      await waitFor(() => {
-        const btn = screen.queryByText(/next →|got it|see results/i);
-        if (!btn) throw new Error('feedback next button not found');
-      }, { timeout: 5000 });
-      const nextBtn = screen.queryByText(/next →|got it|see results/i);
-      await act(async () => { fireEvent.click(nextBtn); });
+      if (makeWrong) {
+        await act(async () => { fireEvent.click(screen.queryByText(t.quizDontKnow)); });
+        // Wrong: inline memory tips → "Got it" button — click it
+        await waitFor(() => {
+          if (!screen.queryByText(t.quizGotIt)) throw new Error('got it button not found');
+        }, { timeout: 5000 });
+        await act(async () => { fireEvent.click(screen.queryByText(t.quizGotIt)); });
+      } else {
+        // Capture current progress before clicking so we can detect the advance
+        const beforeProgress = screen.queryByText(/question \d+ of/i)?.textContent;
+        await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
+        // Correct: auto-advances after ~1600ms praise animation (no feedback page)
+        await waitFor(() => {
+          const summary = screen.queryByText(t.quizSummaryTitle);
+          if (summary) return;
+          const newProgress = screen.queryByText(/question \d+ of/i)?.textContent;
+          if (!newProgress || newProgress === beforeProgress) {
+            throw new Error('question has not advanced yet');
+          }
+        }, { timeout: 5000 });
+      }
     }
 
     await waitFor(() => {
@@ -330,19 +338,26 @@ describe('QuizMode — Chinese new question types', () => {
     return { container, dialog };
   }
 
-  it('zh-fill-blank question (Q2) renders sentence with blank', async () => {
-    const { container } = await startChineseQuiz();
-    // Q1 is 'reading' (self-report) — answer it to advance to Q2
+  // Helper: advance past Q1 (reading self-report correct → auto-advances, no feedback page)
+  async function advancePastQ1() {
+    const beforeProgress = screen.queryByText(/question \d+ of/i)?.textContent;
     await waitFor(() => {
       const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
       if (!ok) throw new Error('self-report buttons not found');
     }, { timeout: 5000 });
-    await act(async () => { fireEvent.click(screen.getByText(t.quizKnowIt)); });
+    await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
+    // Correct self-report auto-advances (praise animation, no feedback next button)
     await waitFor(() => {
-      const next = screen.queryByText(/next →|got it|see results/i);
-      if (!next) throw new Error('feedback next not found');
-    }, { timeout: 5000 });
-    await act(async () => { fireEvent.click(screen.queryByText(/next →|got it|see results/i)); });
+      const summary = screen.queryByText(t.quizSummaryTitle);
+      if (summary) return;
+      const newProgress = screen.queryByText(/question \d+ of/i)?.textContent;
+      if (!newProgress || newProgress === beforeProgress) throw new Error('not advanced yet');
+    }, { timeout: 8000 });
+  }
+
+  it('zh-fill-blank question (Q2) renders sentence with blank', async () => {
+    const { container } = await startChineseQuiz();
+    await advancePastQ1();
 
     // Q2 should be zh-fill-blank: sentence with '___' rendered
     await waitFor(() => {
@@ -354,17 +369,7 @@ describe('QuizMode — Chinese new question types', () => {
 
   it('zh-fill-blank question (Q2) shows choice buttons with Chinese characters', async () => {
     const { container } = await startChineseQuiz();
-    // Advance past Q1 (reading)
-    await waitFor(() => {
-      const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
-      if (!ok) throw new Error('self-report buttons not found');
-    }, { timeout: 5000 });
-    await act(async () => { fireEvent.click(screen.getByText(t.quizKnowIt)); });
-    await waitFor(() => {
-      const next = screen.queryByText(/next →|got it|see results/i);
-      if (!next) throw new Error('feedback next not found');
-    }, { timeout: 5000 });
-    await act(async () => { fireEvent.click(screen.queryByText(/next →|got it|see results/i)); });
+    await advancePastQ1();
 
     // Q2 zh-fill-blank: 3 choice buttons should exist
     await waitFor(() => {

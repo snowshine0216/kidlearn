@@ -133,8 +133,8 @@ describe('QuizMode — chinese-meaning TTS fix', () => {
     await startQuiz();
 
     await waitFor(() => {
-      // question prompt should be visible
-      expect(screen.queryByText(t.quizPrompt.chineseMeaning)).toBeTruthy();
+      // chinese-meaning prompt is intentionally hidden — card speaks for itself
+      expect(screen.queryByText(t.quizPrompt.chineseMeaning)).toBeFalsy();
     }, { timeout: 3000 });
 
     // speak should not have been called with English for this type

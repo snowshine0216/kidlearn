@@ -9,6 +9,10 @@ All notable changes to StarCards will be documented in this file.
 - **Chinese pinyin choice (选择拼音题)** — Chinese-subject quizzes now include a round where the Chinese character is shown and the child picks the correct pinyin from three choices
 - Both new types fall back gracefully to the existing self-report reading round if a card lacks the required data (`sentence_zh` or `pinyin`)
 
+### Fixed
+- **Self-report questions auto-advance** — clicking "I know it" (会！我会读 🗣️ or 我说出来啦！✅) now skips the feedback page and advances to the next question automatically after a brief praise animation, matching the behavior for wrong self-report answers
+- **"Listen → Choose" prompt removed** — the instruction text "听一听，选出正确的英文单词" no longer appears above the card; the card plays the Chinese audio automatically so the prompt is unnecessary
+
 ## [0.3.2.0] - 2026-04-09
 
 ### Added
