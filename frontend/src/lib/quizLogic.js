@@ -151,11 +151,16 @@ export function buildQuestion(card, deck, type) {
     if (!card.pinyin?.trim()) resolvedType = 'reading';
   }
 
+  // For zh-pinyin, distractors must have pinyin set so buttons are never empty
+  const choicePool = resolvedType === 'zh-pinyin'
+    ? deck.filter(c => c.pinyin?.trim())
+    : deck;
+
   const choices =
     resolvedType === 'fill-blank' || resolvedType === 'word-meaning' ||
     resolvedType === 'chinese-meaning' || resolvedType === 'zh-fill-blank' ||
     resolvedType === 'zh-pinyin'
-      ? shuffled([card, ...pickWrongAnswers(card, deck, 2)])
+      ? shuffled([card, ...pickWrongAnswers(card, choicePool, 2)])
       : null;
 
   return {

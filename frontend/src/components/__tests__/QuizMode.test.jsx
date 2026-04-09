@@ -291,6 +291,89 @@ describe('QuizMode — Callbacks', () => {
   });
 });
 
+// ─── Chinese new question types ──────────────────────────────────────────────
+
+describe('QuizMode — Chinese new question types', () => {
+  // Deck where every card has sentence_zh containing chinese, and pinyin set.
+  // ZH_MODES = ['reading', 'zh-fill-blank', 'zh-pinyin'] — cards cycle:
+  //   card-0 → reading, card-1 → zh-fill-blank, card-2 → zh-pinyin, …
+  const zhRichDeck = Array.from({ length: 8 }, (_, i) =>
+    makeCard({
+      id: `zh-rich-${i}`,
+      word: `word${i}`,
+      subject: 'chinese',
+      chinese: `字${i}`,
+      pinyin: `pīn${i}`,
+      sentence_zh: `这是字${i}的例句。`,
+    })
+  );
+
+  async function startChineseQuiz() {
+    const { container } = render(
+      <QuizMode {...DEFAULT_PROPS} deck={zhRichDeck} />
+    );
+    const dialog = container.querySelector('[role="dialog"]');
+    // Switch to Chinese subject
+    const chineseBtn = Array.from(dialog.querySelectorAll('button')).find(
+      (b) => /chinese/i.test(b.textContent)
+    );
+    await act(async () => { fireEvent.click(chineseBtn); });
+    await act(async () => {
+      fireEvent.click(dialog.querySelector('button[class*="start"], button'));
+      // click Start
+      const startBtn = screen.queryByRole('button', { name: /start/i });
+      if (startBtn) fireEvent.click(startBtn);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy();
+    }, { timeout: 3000 });
+    return { container, dialog };
+  }
+
+  it('zh-fill-blank question (Q2) renders sentence with blank', async () => {
+    const { container } = await startChineseQuiz();
+    // Q1 is 'reading' (self-report) — answer it to advance to Q2
+    await waitFor(() => {
+      const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+      if (!ok) throw new Error('self-report buttons not found');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizKnowIt)); });
+    await waitFor(() => {
+      const next = screen.queryByText(/next →|got it|see results/i);
+      if (!next) throw new Error('feedback next not found');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.queryByText(/next →|got it|see results/i)); });
+
+    // Q2 should be zh-fill-blank: sentence with '___' rendered
+    await waitFor(() => {
+      const blanked = container.querySelector('p.cjk-font');
+      expect(blanked).toBeTruthy();
+      expect(blanked.textContent).toMatch(/___/);
+    }, { timeout: 5000 });
+  }, 30000);
+
+  it('zh-fill-blank question (Q2) shows choice buttons with Chinese characters', async () => {
+    const { container } = await startChineseQuiz();
+    // Advance past Q1 (reading)
+    await waitFor(() => {
+      const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+      if (!ok) throw new Error('self-report buttons not found');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizKnowIt)); });
+    await waitFor(() => {
+      const next = screen.queryByText(/next →|got it|see results/i);
+      if (!next) throw new Error('feedback next not found');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.queryByText(/next →|got it|see results/i)); });
+
+    // Q2 zh-fill-blank: 3 choice buttons should exist
+    await waitFor(() => {
+      const choices = container.querySelectorAll('.quiz-choice-btn');
+      expect(choices.length).toBeGreaterThanOrEqual(3);
+    }, { timeout: 5000 });
+  }, 30000);
+});
+
 // ─── dueOnly mode ─────────────────────────────────────────────────────────────
 
 describe('QuizMode — dueOnly mode', () => {

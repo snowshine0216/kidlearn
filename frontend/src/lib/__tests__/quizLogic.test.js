@@ -212,6 +212,11 @@ describe('buildZhFillBlankSentence', () => {
     expect(buildZhFillBlankSentence(card)).toBe('');
   });
 
+  it('returns empty string if sentence_zh is empty string', () => {
+    const card = makeZhCard({ chinese: '苹果', sentence_zh: '' });
+    expect(buildZhFillBlankSentence(card)).toBe('');
+  });
+
   it('returns empty string if card.chinese is null', () => {
     const card = makeZhCard({ chinese: null, sentence_zh: '我喜欢吃苹果。' });
     expect(buildZhFillBlankSentence(card)).toBe('');
@@ -311,6 +316,26 @@ describe('buildQuestion', () => {
     expect(q.type).toBe('reading');
     expect(q.choices).toBeNull();
   });
+
+  it('zh-pinyin: falls back to reading when pinyin is empty string', () => {
+    const card = makeZhCard({ id: 'zh-1', pinyin: '' });
+    const deck = makeDeck(5);
+    const q = buildQuestion(card, deck, 'zh-pinyin');
+    expect(q.type).toBe('reading');
+    expect(q.choices).toBeNull();
+  });
+
+  it('zh-pinyin: distractor choices all have non-empty pinyin', () => {
+    const card = makeZhCard({ id: 'zh-1', chinese: '苹果', pinyin: 'píng guǒ' });
+    // Deck has some cards with pinyin and some without
+    const deck = [
+      ...Array.from({ length: 4 }, (_, i) => makeZhCard({ id: `zh-${i + 2}`, pinyin: `pīn${i}` })),
+      makeZhCard({ id: 'zh-no-pin', pinyin: null }),
+    ];
+    const q = buildQuestion(card, deck, 'zh-pinyin');
+    expect(q.type).toBe('zh-pinyin');
+    expect(q.choices.every(c => c.pinyin?.trim())).toBe(true);
+  });
 });
 
 // ─── buildHint ──────────────────────────────────────────────────────────────
@@ -374,6 +399,11 @@ describe('buildHint', () => {
   it('zh-pinyin: returns English word as hint', () => {
     const card = makeZhCard({ word: 'apple' });
     expect(buildHint(card, 'zh-pinyin')).toBe('apple');
+  });
+
+  it('zh-pinyin: returns empty string when word is null', () => {
+    const card = makeZhCard({ word: null });
+    expect(buildHint(card, 'zh-pinyin')).toBe('');
   });
 });
 
