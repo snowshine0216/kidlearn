@@ -1,5 +1,6 @@
-export default function StatsRow({ t, count, dueCount = 0 }) {
+export default function StatsRow({ t, count, dueCount = 0, onDueClick }) {
   const dueLabel = t.dueForReview(dueCount);
+  const DueChip = onDueClick ? 'button' : 'div';
   return (
     <div className="stats-row flex justify-center gap-2 flex-wrap">
       <div
@@ -12,12 +13,20 @@ export default function StatsRow({ t, count, dueCount = 0 }) {
         }
       </div>
       {dueLabel && (
-        <div
+        <DueChip
+          type={onDueClick ? 'button' : undefined}
+          onClick={onDueClick}
+          aria-label={onDueClick ? dueLabel : undefined}
           className="inline-flex items-center gap-1 px-4 py-2 rounded-2xl text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-coral-light)', color: 'var(--color-coral)' }}
+          style={{
+            backgroundColor: 'var(--color-coral-light)',
+            color: 'var(--color-coral)',
+            cursor: onDueClick ? 'pointer' : undefined,
+            border: onDueClick ? 'none' : undefined,
+          }}
         >
-          🔔 {dueLabel}
-        </div>
+          <span aria-hidden="true">🔔</span> {dueLabel}
+        </DueChip>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import StatsRow from '../StatsRow';
 import { getStrings } from '../../lib/i18n';
 
@@ -40,5 +40,17 @@ describe('StatsRow', () => {
     render(<StatsRow t={t} count={5} />);
     // dueForReview(0) returns '' so nothing rendered
     expect(screen.queryByText(/due for review/i)).toBeNull();
+  });
+
+  it('calls onDueClick when due chip is clicked', () => {
+    const onDueClick = vi.fn();
+    render(<StatsRow t={t} count={10} dueCount={3} onDueClick={onDueClick} />);
+    fireEvent.click(screen.getByRole('button', { name: /3/i }));
+    expect(onDueClick).toHaveBeenCalledOnce();
+  });
+
+  it('due chip has no button role when onDueClick is not provided', () => {
+    render(<StatsRow t={t} count={10} dueCount={3} />);
+    expect(screen.queryByRole('button', { name: /3/i })).toBeNull();
   });
 });
