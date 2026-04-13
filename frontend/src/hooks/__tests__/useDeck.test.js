@@ -47,6 +47,16 @@ describe('useDeck', () => {
     expect(stored[0].word).toBe('butterfly');
   });
 
+  it('addCard returns the saved card object with an id', () => {
+    const { result } = renderHook(() => useDeck());
+    let saved;
+    act(() => { saved = result.current.addCard(mockCard); });
+    expect(saved).toBeTruthy();
+    expect(typeof saved.id).toBe('string');
+    expect(saved.word).toBe('butterfly');
+    expect(saved.id).toBe(result.current.deck[0].id);
+  });
+
   it('deleteCard removes card', () => {
     const { result } = renderHook(() => useDeck());
     act(() => { result.current.addCard(mockCard); });

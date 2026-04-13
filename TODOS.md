@@ -14,6 +14,12 @@
 **Priority:** P2
 **Description:** If user generates a new card within 1.4s, the previous card's pinyin audio plays over the new card. Fix: return a cancel function from `speakCard` and call it from the FlashCard `useEffect` cleanup.
 
+## Code Quality
+
+**Title:** Fix `useDeck.deleteCard` stale closure
+**Priority:** P3
+**Description:** `deleteCard` closes over the `deck` snapshot from `useCallback` instead of using a functional updater (`setDeck(prev => prev.filter(...))`). Rapid consecutive deletes (e.g., two taps in the same render cycle) could silently no-op the second delete. `updateCardMastery` and `patchCard` in the same hook already use the correct functional updater pattern — `deleteCard` should match. One-line fix + one test for rapid delete behavior.
+
 ## v2 Features (Deferred from v1)
 
 **Title:** Mastery tracking + spaced repetition

@@ -9,7 +9,7 @@ const SUBJECT_STYLES = {
   math:    { activeBg: 'var(--color-accent-light)', activeColor: '#085041' },
 };
 
-export default function InputPanel({ t, onCardGenerated, onLoading, recentCards, onLoadRecent }) {
+export default function InputPanel({ t, onCardGenerated, onLoading, recentCards, onLoadRecent, onDeleteCard }) {
   const [subject, setSubject] = useState('english'); // default: English (user decision)
   const [word, setWord] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -133,27 +133,41 @@ export default function InputPanel({ t, onCardGenerated, onLoading, recentCards,
             </p>
             <div className="flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto">
               {recentCards.map((c) => (
-                <button
+                <div
                   key={c.id}
-                  onClick={() => onLoadRecent?.(c)}
-                  className="recent-chip w-full text-left px-3 py-2 rounded-xl text-sm font-semibold hover:opacity-80 transition-opacity"
+                  className="recent-chip flex items-center gap-1 rounded-xl"
                   style={{ backgroundColor: 'var(--color-bg)' }}
-                  aria-label={c.word}
                 >
-                  <span className="font-bold">{c.subject === 'chinese' && c.chinese ? c.chinese : c.word}</span>{' '}
-                  <span
-                    className="text-xs rounded-full px-2 py-0.5 font-bold"
-                    style={{
-                      backgroundColor: SUBJECT_STYLES[c.subject]?.activeBg ?? 'var(--color-bg)',
-                      color: SUBJECT_STYLES[c.subject]?.activeColor ?? 'var(--color-muted)',
-                    }}
+                  <button
+                    onClick={() => onLoadRecent?.(c)}
+                    className="flex-1 text-left px-3 py-2 text-sm font-semibold hover:opacity-80 transition-opacity min-w-0"
+                    aria-label={c.word}
                   >
-                    {c.subject === 'english' ? 'EN' : c.subject === 'chinese' ? 'ZH' : 'MATH'}
-                  </span>{' '}
-                  <span style={{ color: 'var(--color-muted)' }}>
-                    • {new Date(c.savedAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}
-                  </span>
-                </button>
+                    <span className="font-bold">{c.subject === 'chinese' && c.chinese ? c.chinese : c.word}</span>{' '}
+                    <span
+                      className="text-xs rounded-full px-2 py-0.5 font-bold"
+                      style={{
+                        backgroundColor: SUBJECT_STYLES[c.subject]?.activeBg ?? 'var(--color-bg)',
+                        color: SUBJECT_STYLES[c.subject]?.activeColor ?? 'var(--color-muted)',
+                      }}
+                    >
+                      {c.subject === 'english' ? 'EN' : c.subject === 'chinese' ? 'ZH' : 'MATH'}
+                    </span>{' '}
+                    <span style={{ color: 'var(--color-muted)' }}>
+                      • {new Date(c.savedAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}
+                    </span>
+                  </button>
+                  {onDeleteCard && (
+                    <button
+                      onClick={() => onDeleteCard(c.id)}
+                      className="px-2 py-1 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 text-sm"
+                      style={{ color: 'var(--color-muted)' }}
+                      aria-label={`Delete ${c.subject === 'chinese' && c.chinese ? c.chinese : c.word}`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </div>

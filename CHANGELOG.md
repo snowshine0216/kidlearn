@@ -2,11 +2,19 @@
 
 All notable changes to StarCards will be documented in this file.
 
-## [0.3.4.0] - 2026-04-13
+## [0.3.5.0] - 2026-04-13
 
 ### Added
 - **Back button in quiz** — after answering a question, a "← Back" button appears so you can undo your last answer and try again; the card's mastery is restored to its pre-answer state, and the history clears when you restart the quiz
 - **Quiz-exclude toggle** — each card in quiz mode (and in the card deck view) now has a "Skip in Quiz" button; excluded cards are hidden from all future quiz sessions until re-enabled with "Include in Quiz"
+
+## [0.3.4.0] - 2026-04-13
+
+### Added
+- **Delete cards from the side panel** — every word chip in the recent-cards list now has a × button; clicking it removes the card from your deck immediately, and if you were viewing that card it clears the flashcard area
+
+### Fixed
+- **Error guard on card save** — if the AI returns an incomplete response (missing emoji, word, sentence, or color theme), the app now shows a clear error instead of silently saving a broken card
 
 ## [0.3.3.0] - 2026-04-09
 

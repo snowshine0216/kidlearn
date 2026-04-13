@@ -59,14 +59,15 @@ describe('generateCard', () => {
   });
 
   it('returns parsed card on 200', async () => {
-    const card = { word: 'butterfly', emoji: '🦋', color_theme: 'purple' };
+    const card = { word: 'butterfly', emoji: '🦋', color_theme: 'purple', sentence: 'The butterfly flew over the colorful flowers.' };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => card });
     const result = await generateCard('butterfly', 'english');
     expect(result).toEqual(card);
   });
 
   it('sends sanitized word to /api/generate', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    const validCard = { word: 'butterfly', emoji: '🦋', color_theme: 'purple', sentence: 'A sentence.' };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => validCard });
     await generateCard('  butterfly  ', 'english');
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.word).toBe('butterfly');
@@ -74,7 +75,8 @@ describe('generateCard', () => {
   });
 
   it('returns null within 1-second cooldown', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    const validCard = { word: 'butterfly', emoji: '🦋', color_theme: 'purple', sentence: 'A sentence.' };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => validCard });
     await generateCard('butterfly', 'english'); // sets lastCallTime
     const result = await generateCard('rose', 'english'); // within 1s
     expect(result).toBeNull();
@@ -107,5 +109,13 @@ describe('generateCard', () => {
       ok: false, status: 400, json: async () => ({ error: 'bad word' }),
     });
     await expect(generateCard('butterfly', 'english')).rejects.toThrow('bad word');
+  });
+
+  it('throws if response is missing required fields', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ word: 'test', emoji: '🧪' }), // missing sentence + color_theme
+    });
+    await expect(generateCard('test', 'english')).rejects.toThrow('AI returned incomplete card');
   });
 });

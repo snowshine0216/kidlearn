@@ -103,7 +103,7 @@ export function useDeck(showToast) {
       try {
         saveDeck(next);
         setDeck(next);
-        return true;
+        return newCard;
       } catch (e) {
         showToast?.(e.message);
         return false;
