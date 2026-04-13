@@ -204,8 +204,10 @@ describe('QuizMode — Summary', () => {
 // ─── Retry Failed Cards ───────────────────────────────────────────────────────
 
 describe('QuizMode — Retry Failed Cards', () => {
+  // pinyin: null so zh-pinyin falls back to reading (self-report); no sentence_zh so zh-fill-blank also falls back.
+  // This keeps the test focused on retry-failed-cards logic using self-report questions.
   const zhDeck = Array.from({ length: 8 }, (_, i) =>
-    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese' })
+    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese', pinyin: null, sentence_zh: null })
   );
 
   async function navigateToSummary(makeWrong = false) {
@@ -295,6 +297,86 @@ describe('QuizMode — Callbacks', () => {
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalled();
   });
+});
+
+// ─── Chinese new question types ──────────────────────────────────────────────
+
+describe('QuizMode — Chinese new question types', () => {
+  // Deck where every card has sentence_zh containing chinese, and pinyin set.
+  // ZH_MODES = ['reading', 'zh-fill-blank', 'zh-pinyin'] — cards cycle:
+  //   card-0 → reading, card-1 → zh-fill-blank, card-2 → zh-pinyin, …
+  const zhRichDeck = Array.from({ length: 8 }, (_, i) =>
+    makeCard({
+      id: `zh-rich-${i}`,
+      word: `word${i}`,
+      subject: 'chinese',
+      chinese: `字${i}`,
+      pinyin: `pīn${i}`,
+      sentence_zh: `这是字${i}的例句。`,
+    })
+  );
+
+  async function startChineseQuiz() {
+    const { container } = render(
+      <QuizMode {...DEFAULT_PROPS} deck={zhRichDeck} />
+    );
+    const dialog = container.querySelector('[role="dialog"]');
+    // Switch to Chinese subject
+    const chineseBtn = Array.from(dialog.querySelectorAll('button')).find(
+      (b) => /chinese/i.test(b.textContent)
+    );
+    await act(async () => { fireEvent.click(chineseBtn); });
+    await act(async () => {
+      fireEvent.click(dialog.querySelector('button[class*="start"], button'));
+      // click Start
+      const startBtn = screen.queryByRole('button', { name: /start/i });
+      if (startBtn) fireEvent.click(startBtn);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy();
+    }, { timeout: 3000 });
+    return { container, dialog };
+  }
+
+  // Helper: advance past Q1 (reading self-report correct → auto-advances, no feedback page)
+  async function advancePastQ1() {
+    const beforeProgress = screen.queryByText(/question \d+ of/i)?.textContent;
+    await waitFor(() => {
+      const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+      if (!ok) throw new Error('self-report buttons not found');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
+    // Correct self-report auto-advances (praise animation, no feedback next button)
+    await waitFor(() => {
+      const summary = screen.queryByText(t.quizSummaryTitle);
+      if (summary) return;
+      const newProgress = screen.queryByText(/question \d+ of/i)?.textContent;
+      if (!newProgress || newProgress === beforeProgress) throw new Error('not advanced yet');
+    }, { timeout: 8000 });
+  }
+
+  it('zh-fill-blank question (Q2) renders sentence with blank', async () => {
+    const { container } = await startChineseQuiz();
+    await advancePastQ1();
+
+    // Q2 should be zh-fill-blank: sentence with '___' rendered
+    await waitFor(() => {
+      const blanked = container.querySelector('p.cjk-font');
+      expect(blanked).toBeTruthy();
+      expect(blanked.textContent).toMatch(/___/);
+    }, { timeout: 5000 });
+  }, 30000);
+
+  it('zh-fill-blank question (Q2) shows choice buttons with Chinese characters', async () => {
+    const { container } = await startChineseQuiz();
+    await advancePastQ1();
+
+    // Q2 zh-fill-blank: 3 choice buttons should exist
+    await waitFor(() => {
+      const choices = container.querySelectorAll('.quiz-choice-btn');
+      expect(choices.length).toBeGreaterThanOrEqual(3);
+    }, { timeout: 5000 });
+  }, 30000);
 });
 
 // ─── dueOnly mode ─────────────────────────────────────────────────────────────
