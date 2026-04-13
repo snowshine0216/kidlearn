@@ -38,14 +38,12 @@ describe('App handleDeleteCard', () => {
     fireEvent.click(screen.getByLabelText('apple'));
 
     // Delete button exists before deletion
-    expect(screen.getByLabelText('Delete apple')).toBeTruthy();
+    expect(screen.getByLabelText('Delete apple')).toBeInTheDocument();
 
     // Delete via the × button
     fireEvent.click(screen.getByLabelText('Delete apple'));
 
-    // Card removed from list and FlashCard cleared — Delete button gone
-    expect(screen.queryAllByLabelText('Delete apple')).toHaveLength(0);
-    // CardActions (rendered only when currentCard is set) should not render
+    // Card removed from list — Delete button gone
     expect(screen.queryAllByLabelText('Delete apple')).toHaveLength(0);
   });
 
@@ -82,8 +80,8 @@ describe('App handleDeleteCard', () => {
     fireEvent.click(screen.getByLabelText('apple'));
 
     // Both delete buttons should exist before any deletion
-    expect(screen.getByLabelText('Delete apple')).toBeTruthy();
-    expect(screen.getByLabelText('Delete rose')).toBeTruthy();
+    expect(screen.getByLabelText('Delete apple')).toBeInTheDocument();
+    expect(screen.getByLabelText('Delete rose')).toBeInTheDocument();
 
     // Delete card2 (not the current one)
     fireEvent.click(screen.getByLabelText('Delete rose'));

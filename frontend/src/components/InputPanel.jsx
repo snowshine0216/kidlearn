@@ -162,7 +162,7 @@ export default function InputPanel({ t, onCardGenerated, onLoading, recentCards,
                       onClick={() => onDeleteCard(c.id)}
                       className="px-2 py-1 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 text-sm"
                       style={{ color: 'var(--color-muted)' }}
-                      aria-label={`Delete ${c.word}`}
+                      aria-label={`Delete ${c.subject === 'chinese' && c.chinese ? c.chinese : c.word}`}
                     >
                       ×
                     </button>

@@ -59,8 +59,8 @@ export async function generateCard(word, subject) {
   }
 
   const card = await response.json();
-  const required = ['emoji', 'word', 'sentence', 'color_theme'];
-  if (!required.every(f => typeof card[f] === 'string')) {
+  const REQUIRED_CARD_FIELDS = ['emoji', 'word', 'sentence', 'color_theme'];
+  if (!REQUIRED_CARD_FIELDS.every(f => typeof card[f] === 'string')) {
     throw new Error('AI returned incomplete card');
   }
   return card;
