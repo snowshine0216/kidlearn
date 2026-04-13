@@ -96,4 +96,39 @@ describe('InputPanel', () => {
     const chineseInput = screen.getByLabelText(t.placeholders.chinese);
     expect(chineseInput.value).toBe('');
   });
+
+  it('renders a delete button for each recent card when onDeleteCard is provided', () => {
+    const cards = [
+      { id: '1', word: 'apple', subject: 'english', savedAt: Date.now() },
+      { id: '2', word: 'banana', subject: 'english', savedAt: Date.now() },
+    ];
+    render(<InputPanel t={t} onCardGenerated={vi.fn()} onLoading={vi.fn()}
+      recentCards={cards} onDeleteCard={vi.fn()} />);
+    expect(screen.getAllByLabelText(/^Delete /)).toHaveLength(2);
+  });
+
+  it('clicking delete calls onDeleteCard with the card id', async () => {
+    const onDeleteCard = vi.fn();
+    const cards = [{ id: 'abc', word: 'rose', subject: 'english', savedAt: Date.now() }];
+    render(<InputPanel t={t} onCardGenerated={vi.fn()} onLoading={vi.fn()}
+      recentCards={cards} onDeleteCard={onDeleteCard} />);
+    fireEvent.click(screen.getByLabelText('Delete rose'));
+    expect(onDeleteCard).toHaveBeenCalledWith('abc');
+  });
+
+  it('does not render delete buttons when onDeleteCard is not provided', () => {
+    const cards = [{ id: '1', word: 'apple', subject: 'english', savedAt: Date.now() }];
+    render(<InputPanel t={t} onCardGenerated={vi.fn()} onLoading={vi.fn()}
+      recentCards={cards} />);
+    expect(screen.queryAllByLabelText(/^Delete /)).toHaveLength(0);
+  });
+
+  it('clicking the load button calls onLoadRecent with the card', async () => {
+    const onLoadRecent = vi.fn();
+    const card = { id: '1', word: 'apple', subject: 'english', savedAt: Date.now() };
+    render(<InputPanel t={t} onCardGenerated={vi.fn()} onLoading={vi.fn()}
+      recentCards={[card]} onLoadRecent={onLoadRecent} onDeleteCard={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText('apple'));
+    expect(onLoadRecent).toHaveBeenCalledWith(card);
+  });
 });

@@ -2,6 +2,14 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.4.0] - 2026-04-13
+
+### Added
+- **Delete cards from the side panel** — every word chip in the recent-cards list now has a × button; clicking it removes the card from your deck immediately, and if you were viewing that card it clears the flashcard area
+
+### Fixed
+- **Error guard on card save** — if the AI returns an incomplete response (missing emoji, word, sentence, or color theme), the app now shows a clear error instead of silently saving a broken card
+
 ## [0.3.3.0] - 2026-04-09
 
 ### Added

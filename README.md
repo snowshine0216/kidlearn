@@ -49,7 +49,7 @@ Each card costs roughly ¥0.01–0.02 — a family app will stay well under ¥5/
 
 ```bash
 cd frontend
-npm run test        # run all tests once (245 tests)
+npm run test        # run all tests once (253 tests)
 npm run test:watch  # watch mode
 ```
 
@@ -135,7 +135,7 @@ If you ever rotate the key, update it in **Vercel → Settings → Environment V
 
 ## Adding a New Subject (e.g., Science)
 
-1. `InputPanel.jsx` — add to `SUBJECTS` array with emoji and id
+1. `InputPanel.jsx` — add to `SUBJECT_IDS` array and `SUBJECT_STYLES` with id and colors
 2. `index.css` — add subject color variables following the existing pattern
 3. `api/generate.js` + `vite.config.js` — update the AI prompt template
 4. `DeckView.jsx` — add filter button to `FILTER_IDS`
