@@ -418,8 +418,10 @@ describe('QuizMode — dueOnly mode', () => {
 // ─── Back button ──────────────────────────────────────────────────────────────
 
 describe('QuizMode — Back button', () => {
+  // pinyin: '' forces zh-pinyin type to fall back to 'reading' (self-report),
+  // so all questions show quizKnowIt/quizDontKnow buttons for consistent testing.
   const zhDeck = Array.from({ length: 8 }, (_, i) =>
-    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese' })
+    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
   );
 
   async function startZhQuiz() {
@@ -568,8 +570,10 @@ describe('QuizMode — Back button', () => {
 // ─── Quiz-exclude toggle ──────────────────────────────────────────────────────
 
 describe('QuizMode — Quiz-exclude toggle', () => {
+  // pinyin: '' forces zh-pinyin type to fall back to 'reading' (self-report),
+  // so all questions show quizKnowIt/quizDontKnow buttons for consistent testing.
   const zhDeck = Array.from({ length: 8 }, (_, i) =>
-    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese' })
+    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
   );
 
   async function startZhQuiz(deckOverride = zhDeck) {
@@ -627,8 +631,9 @@ describe('QuizMode — Quiz-exclude toggle', () => {
 
   it('excluding on last question goes to summary (not crash)', async () => {
     // Build a 5-card deck, advance to last question, then exclude
+    // pinyin: '' forces zh-pinyin fallback to 'reading' so all Qs show knowIt/dontKnow
     const smallDeck = Array.from({ length: 5 }, (_, i) =>
-      makeCard({ id: `s-${i}`, word: `word${i}`, subject: 'chinese' })
+      makeCard({ id: `s-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
     );
     render(<QuizMode {...DEFAULT_PROPS} deck={smallDeck} />);
     await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
