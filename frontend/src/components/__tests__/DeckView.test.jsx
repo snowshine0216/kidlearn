@@ -119,3 +119,31 @@ describe('DeckView — with cards', () => {
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
   });
 });
+
+describe('DeckView — quiz-disable toggle', () => {
+  const card = makeCard({ id: 'en-1', word: 'butterfly', subject: 'english', quizDisabled: false });
+  const disabledCard = makeCard({ id: 'en-2', word: 'bee', subject: 'english', quizDisabled: true });
+
+  it('shows quiz-disable button for each card when onToggleQuizDisabled is provided', () => {
+    render(<DeckView t={t} deck={[card]} onDelete={vi.fn()} onClose={vi.fn()} onToggleQuizDisabled={vi.fn()} />);
+    expect(screen.getByText(t.quizDisable)).toBeTruthy();
+  });
+
+  it('shows quizEnable label when card is already disabled', () => {
+    render(<DeckView t={t} deck={[disabledCard]} onDelete={vi.fn()} onClose={vi.fn()} onToggleQuizDisabled={vi.fn()} />);
+    expect(screen.getByText(t.quizEnable)).toBeTruthy();
+  });
+
+  it('clicking the toggle calls onToggleQuizDisabled with card id and current value', () => {
+    const onToggle = vi.fn();
+    render(<DeckView t={t} deck={[card]} onDelete={vi.fn()} onClose={vi.fn()} onToggleQuizDisabled={onToggle} />);
+    fireEvent.click(screen.getByText(t.quizDisable));
+    expect(onToggle).toHaveBeenCalledWith(card.id, false);
+  });
+
+  it('does not render toggle button when onToggleQuizDisabled is not provided', () => {
+    render(<DeckView t={t} deck={[card]} onDelete={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.queryByText(t.quizDisable)).toBeNull();
+    expect(screen.queryByText(t.quizEnable)).toBeNull();
+  });
+});

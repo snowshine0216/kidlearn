@@ -26,7 +26,7 @@ export function shuffled(arr) {
  *   4. Mastered (mastery >= 3, not overdue)
  */
 export function selectQuizCards(deck, subject, count) {
-  const filtered = deck.filter(c => c.subject === subject);
+  const filtered = deck.filter(c => c.subject === subject && !c.quizDisabled);
   const now = Date.now();
 
   const hasReviewed = c => c.mastery !== null && c.mastery !== undefined;
