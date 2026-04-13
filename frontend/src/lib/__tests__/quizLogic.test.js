@@ -131,6 +131,36 @@ describe('selectQuizCards', () => {
     const result = selectQuizCards(deck, 'chinese', 5);
     expect(result).toHaveLength(0);
   });
+
+  it('excludes cards with quizDisabled: true', () => {
+    const disabled = makeCard({ id: 'disabled', quizDisabled: true });
+    const enabled = makeCard({ id: 'enabled', quizDisabled: false });
+    const deck = [disabled, enabled];
+    const result = selectQuizCards(deck, 'english', 5);
+    expect(result.every(c => c.id !== 'disabled')).toBe(true);
+    expect(result.some(c => c.id === 'enabled')).toBe(true);
+  });
+
+  it('includes cards with quizDisabled: false', () => {
+    const deck = [makeCard({ id: 'c1', quizDisabled: false })];
+    const result = selectQuizCards(deck, 'english', 5);
+    expect(result).toHaveLength(1);
+  });
+
+  it('includes cards with quizDisabled: undefined (backward compat)', () => {
+    const deck = [makeCard({ id: 'c1' })]; // quizDisabled not set
+    const result = selectQuizCards(deck, 'english', 5);
+    expect(result).toHaveLength(1);
+  });
+
+  it('returns empty array when all matching cards are quizDisabled', () => {
+    const deck = [
+      makeCard({ id: 'c1', quizDisabled: true }),
+      makeCard({ id: 'c2', quizDisabled: true }),
+    ];
+    const result = selectQuizCards(deck, 'english', 5);
+    expect(result).toHaveLength(0);
+  });
 });
 
 // ─── pickWrongAnswers ────────────────────────────────────────────────────────

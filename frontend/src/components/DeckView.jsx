@@ -3,7 +3,7 @@ import { getTheme } from '../lib/colorThemes';
 
 const FILTER_IDS = ['all', 'english', 'chinese', 'math'];
 
-export default function DeckView({ t, deck, onDelete, onClose, onStartQuiz }) {
+export default function DeckView({ t, deck, onDelete, onClose, onStartQuiz, onToggleQuizDisabled }) {
   const [filter, setFilter] = useState('all');
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -145,13 +145,22 @@ export default function DeckView({ t, deck, onDelete, onClose, onStartQuiz }) {
                       {card.chinese && (
                         <div className="text-xs cjk-font truncate" style={{ color: 'var(--color-text)' }}>{card.chinese}</div>
                       )}
-                      <div className="mt-auto">
+                      <div className="mt-auto flex items-center justify-between">
                         <span
                           className="text-xs font-bold px-2 py-0.5 rounded-full"
                           style={{ backgroundColor: 'rgba(255,255,255,0.6)', color: theme.accent }}
                         >
                           {card.subject === 'english' ? 'EN' : card.subject === 'chinese' ? 'ZH' : 'MATH'}
                         </span>
+                        {onToggleQuizDisabled && (
+                          <button
+                            onClick={() => onToggleQuizDisabled(card.id, card.quizDisabled ?? false)}
+                            className="text-xs px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.6)', color: 'var(--color-muted)' }}
+                          >
+                            {card.quizDisabled ? t.quizEnable : t.quizDisable}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
