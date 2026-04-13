@@ -40,11 +40,18 @@ export default function App() {
   }
 
   function handleCardGenerated(card) {
-    setCurrentCard(card);
-    setCurrentSubject(card.subject);
+    const savedCard = addCard(card);
+    if (savedCard) {
+      setCurrentCard(savedCard);
+      setCurrentSubject(savedCard.subject ?? card.subject);
+    }
     setIsLoading(false);
     touchStreak();
-    addCard(card);
+  }
+
+  function handleDeleteCard(id) {
+    if (currentCard?.id === id) setCurrentCard(null);
+    deleteCard(id);
   }
 
   function handleLoadRecent(card) {
@@ -91,6 +98,7 @@ export default function App() {
             onLoading={setIsLoading}
             recentCards={deck}
             onLoadRecent={handleLoadRecent}
+            onDeleteCard={handleDeleteCard}
           />
 
           <div className="flex flex-col gap-4 flex-1 min-w-0 pb-24 md:pb-0">

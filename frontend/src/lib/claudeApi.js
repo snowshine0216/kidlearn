@@ -58,5 +58,10 @@ export async function generateCard(word, subject) {
     throw new Error(specific ?? serverMsg ?? '糟糕！再试一次 🌟 / Oops! Try again 🌟');
   }
 
-  return response.json();
+  const card = await response.json();
+  const required = ['emoji', 'word', 'sentence', 'color_theme'];
+  if (!required.every(f => typeof card[f] === 'string')) {
+    throw new Error('AI returned incomplete card');
+  }
+  return card;
 }
