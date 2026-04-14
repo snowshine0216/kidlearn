@@ -15,6 +15,39 @@ export function shuffled(arr) {
   return a;
 }
 
+// ─── isDueCard ────────────────────────────────────────────────────────────────
+
+/**
+ * Returns true if a card needs review: overdue OR never reviewed.
+ * Uses strict === null: production cards (migrateCard) set nextReviewAt: null explicitly.
+ * nextReviewAt: undefined is a test-helper artifact — treated as not-due.
+ * Invariant: all card creation paths (addCard → migrateCard) must set nextReviewAt: null.
+ */
+export function isDueCard(card, now = Date.now()) {
+  return card.nextReviewAt === null || card.nextReviewAt <= now;
+}
+
+// ─── getDueCards ──────────────────────────────────────────────────────────────
+
+/**
+ * Returns cards needing review, newest-first (by savedAt desc).
+ * Cards added on the same day are shuffled relative to each other.
+ * Cards with savedAt: undefined fall to epoch day 0 (shown last) — intentional fallback.
+ */
+export function getDueCards(deck, now = Date.now()) {
+  const due = deck.filter(c => isDueCard(c, now));
+  const dayBucket = c => Math.floor((c.savedAt || 0) / 86400000);
+  // day buckets are small integers (~19000 range); string key sort is safe with Number() conversion
+  const grouped = due.reduce((acc, c) => {
+    const key = dayBucket(c);
+    (acc[key] = acc[key] || []).push(c);
+    return acc;
+  }, {});
+  return Object.keys(grouped)
+    .sort((a, b) => Number(b) - Number(a))
+    .flatMap(key => shuffled(grouped[key]));
+}
+
 // ─── selectQuizCards ─────────────────────────────────────────────────────────
 
 /**

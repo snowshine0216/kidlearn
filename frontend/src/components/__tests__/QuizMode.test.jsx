@@ -393,6 +393,16 @@ describe('QuizMode — dueOnly mode', () => {
     await waitFor(() => expect(screen.getByText(/question 1/i)).toBeTruthy(), { timeout: 3000 });
   });
 
+  it('shows quiz immediately for cards with nextReviewAt: null (never reviewed)', async () => {
+    const nullCard = makeCard({ id: 'null-card', nextReviewAt: null, savedAt: Date.now() });
+    const deck = [nullCard, ...makeDeck(7)];
+    render(<QuizMode {...DEFAULT_PROPS} deck={deck} dueOnly />);
+    // No Start button — lobby is skipped even for never-reviewed (null) cards
+    expect(screen.queryByRole('button', { name: /start/i })).toBeNull();
+    // Question phase appears
+    await waitFor(() => expect(screen.getByText(/question 1/i)).toBeTruthy(), { timeout: 3000 });
+  });
+
   it('falls back to lobby when dueOnly=true but no due cards exist', () => {
     // makeDeck cards have nextReviewAt: undefined — not due
     render(<QuizMode {...DEFAULT_PROPS} dueOnly />);

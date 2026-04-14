@@ -2,6 +2,13 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.5.0] - 2026-04-14
+
+### Fixed
+- **"Needs revise" now includes newly-added cards** — brand-new vocabulary cards (never reviewed) were being silently excluded from the "needs revise" quiz because the filter required a non-null timestamp. Cards with `nextReviewAt: null` now correctly appear as due for review.
+- **"Needs revise" ordered newest-first** — cards in the due-only quiz now appear in newest-first order (by day added), with same-day cards shuffled relative to each other. Previously all cards were shuffled randomly.
+- **Badge count matches quiz content** — the "N cards due for review" badge on the home screen now uses the same filter as the quiz itself, so the count is always accurate.
+
 ## [0.3.4.0] - 2026-04-13
 
 ### Added
