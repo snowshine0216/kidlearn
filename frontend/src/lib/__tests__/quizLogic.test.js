@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   shuffled,
+  isDueCard,
+  getDueCards,
   selectQuizCards,
   buildQuestions,
   buildQuestion,
@@ -75,6 +77,68 @@ describe('shuffled', () => {
 
   it('handles single element', () => {
     expect(shuffled([42])).toEqual([42]);
+  });
+});
+
+// ─── isDueCard ──────────────────────────────────────────────────────────────
+
+describe('isDueCard', () => {
+  it('returns true when nextReviewAt is null (never reviewed)', () => {
+    expect(isDueCard({ nextReviewAt: null })).toBe(true);
+  });
+  it('returns true when nextReviewAt is in the past', () => {
+    expect(isDueCard({ nextReviewAt: Date.now() - 1000 })).toBe(true);
+  });
+  it('returns false when nextReviewAt is in the future', () => {
+    expect(isDueCard({ nextReviewAt: Date.now() + 100000 })).toBe(false);
+  });
+  it('returns false when nextReviewAt is undefined (test-helper artifact)', () => {
+    expect(isDueCard({ nextReviewAt: undefined })).toBe(false);
+  });
+});
+
+// ─── getDueCards ─────────────────────────────────────────────────────────────
+
+describe('getDueCards', () => {
+  it('includes cards with nextReviewAt: null (never reviewed)', () => {
+    const card = { id: '1', nextReviewAt: null, savedAt: Date.now() };
+    expect(getDueCards([card])).toHaveLength(1);
+    expect(getDueCards([card])[0]).toBe(card);
+  });
+  it('excludes cards with future nextReviewAt', () => {
+    const card = { id: '1', nextReviewAt: Date.now() + 100000, savedAt: Date.now() };
+    expect(getDueCards([card])).toHaveLength(0);
+  });
+  it('orders newest savedAt first (different days)', () => {
+    const NOW = Date.now();
+    const older = { id: '1', nextReviewAt: null, savedAt: NOW - 2 * 86400000 }; // 2 days ago
+    const newer = { id: '2', nextReviewAt: null, savedAt: NOW };                 // today
+    const result = getDueCards([older, newer]);
+    expect(result[0]).toBe(newer);
+    expect(result[1]).toBe(older);
+  });
+  it('cards with same savedAt day are all returned (shuffled within group)', () => {
+    const NOW = Date.now();
+    const a = { id: '1', nextReviewAt: null, savedAt: NOW - 1000 }; // same day
+    const b = { id: '2', nextReviewAt: null, savedAt: NOW - 2000 }; // same day
+    const result = getDueCards([a, b]);
+    expect(result).toHaveLength(2);
+    expect(result).toEqual(expect.arrayContaining([a, b]));
+  });
+  it('cards with savedAt: undefined fall to epoch day 0 (shown last)', () => {
+    const NOW = Date.now();
+    const recentCard = { id: '1', nextReviewAt: null, savedAt: NOW };
+    const noSavedAt  = { id: '2', nextReviewAt: null, savedAt: undefined };
+    const result = getDueCards([noSavedAt, recentCard]);
+    expect(result[0]).toBe(recentCard); // recent day comes first
+    expect(result[1]).toBe(noSavedAt);  // epoch day 0 comes last
+  });
+  it('returns empty array for empty deck', () => {
+    expect(getDueCards([])).toEqual([]);
+  });
+  it('returns single due card', () => {
+    const card = { id: '1', nextReviewAt: null, savedAt: Date.now() };
+    expect(getDueCards([card])).toEqual([card]);
   });
 });
 

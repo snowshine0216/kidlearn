@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, shuffled } from '../lib/quizLogic';
+import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, shuffled, getDueCards } from '../lib/quizLogic';
 import { getQuizHint } from '../lib/quizHintApi';
 import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
@@ -724,16 +724,18 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   useEffect(() => {
     if (!dueOnly) return;
     const now = Date.now();
-    const isDue = c => c.nextReviewAt != null && c.nextReviewAt <= now;
-    const dueCards = deck.filter(c => isDue(c) && !c.quizDisabled);
+    const dueCards = getDueCards(deck, now).filter(c => !c.quizDisabled);
     if (dueCards.length === 0) return; // no due cards → fall back to lobby
 
-    const english = shuffled(dueCards.filter(c => c.subject === 'english'));
-    const chinese = shuffled(dueCards.filter(c => c.subject === 'chinese'));
-    const built = shuffled([
-      ...buildQuestions(english, deck, EN_MODES),
-      ...buildQuestions(chinese, deck, ZH_MODES),
-    ]);
+    // Single-pass map: preserves newest-first day ordering AND interleaves EN/ZH naturally.
+    // buildQuestion (singular) is a pure function — processes one card at a time.
+    // TODO: session cap — slice dueCards to a limit here before scaling to large decks.
+    let enIdx = 0, zhIdx = 0;
+    const built = dueCards.map(c =>
+      c.subject === 'english'
+        ? buildQuestion(c, deck, EN_MODES[enIdx++ % EN_MODES.length])
+        : buildQuestion(c, deck, ZH_MODES[zhIdx++ % ZH_MODES.length])
+    );
 
     setQuestions(built);
     setHintLoadingSet(new Set(built.map(q => q.card.id)));
