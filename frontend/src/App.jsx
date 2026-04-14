@@ -148,6 +148,7 @@ export default function App() {
           onDelete={deleteCard}
           onClose={() => setShowDeck(false)}
           onStartQuiz={() => setShowQuiz(true)}
+          onToggleQuizDisabled={(id, currentValue) => patchCard(id, { quizDisabled: !currentValue })}
         />
       )}
 

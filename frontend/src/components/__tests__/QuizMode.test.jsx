@@ -413,5 +413,271 @@ describe('QuizMode — dueOnly mode', () => {
     render(<QuizMode {...DEFAULT_PROPS} />);
     expect(screen.getByRole('button', { name: /start/i })).toBeTruthy();
   });
+
+  it('dueOnly excludes quizDisabled cards from auto-start', async () => {
+    const now = Date.now();
+    // Only due card is disabled — no valid due cards
+    const disabledDue = makeCard({ id: 'disabled-due', mastery: 1, nextReviewAt: now - 1000, quizDisabled: true });
+    const deck = [disabledDue, ...makeDeck(7)];
+    render(<QuizMode {...DEFAULT_PROPS} deck={deck} dueOnly />);
+    // Falls back to lobby because disabled card was excluded
+    expect(screen.getByRole('button', { name: /start/i })).toBeTruthy();
+  });
+});
+
+// ─── Back button ──────────────────────────────────────────────────────────────
+
+describe('QuizMode — Back button', () => {
+  // pinyin: '' forces zh-pinyin type to fall back to 'reading' (self-report),
+  // so all questions show quizKnowIt/quizDontKnow buttons for consistent testing.
+  const zhDeck = Array.from({ length: 8 }, (_, i) =>
+    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
+  );
+
+  async function startZhQuiz() {
+    render(<QuizMode {...DEFAULT_PROPS} deck={zhDeck} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy();
+    }, { timeout: 3000 });
+  }
+
+  it('back button is not shown before any answer', async () => {
+    await startZhQuiz();
+    await waitFor(() => expect(screen.queryByText(/question 1/i)).toBeTruthy(), { timeout: 3000 });
+    expect(screen.queryByText(t.quizBack)).toBeFalsy();
+  });
+
+  it('back button appears after answering first question correctly', async () => {
+    await startZhQuiz();
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizKnowIt)) throw new Error('waiting for answer buttons');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizKnowIt)); });
+    // After correct answer, auto-advances — back button should be visible on Q2
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizBack)).toBeTruthy();
+    }, { timeout: 5000 });
+  });
+
+  it('back button appears after committing a wrong answer (on next question)', async () => {
+    await startZhQuiz();
+    // Click Don't Know (inline memory shows, no answer committed yet)
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizDontKnow)) throw new Error('waiting for answer buttons');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+    // Click "Got it" to commit the wrong answer and advance to Q2
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizGotIt)) throw new Error('got it not found');
+    }, { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizGotIt)); });
+    // Now on Q2 — back button should appear
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizBack)).toBeTruthy();
+    }, { timeout: 3000 });
+  });
+
+  it('clicking back from Q2 returns to Q1 question phase', async () => {
+    await startZhQuiz();
+    // Commit wrong answer on Q1
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizDontKnow)) throw new Error('waiting');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizGotIt)) throw new Error('got it not found');
+    }, { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizGotIt)); });
+
+    // Now on Q2 — click back
+    await waitFor(() => expect(screen.queryByText(t.quizBack)).toBeTruthy(), { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizBack)); });
+
+    // Should be back on Q1 with answer buttons
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow)).toBeTruthy();
+    }, { timeout: 3000 });
+    expect(screen.queryByText(/question 1 of/i)).toBeTruthy();
+  });
+
+  it('clicking back calls onPatchCard to restore card mastery', async () => {
+    const onPatchCard = vi.fn();
+    render(<QuizMode {...DEFAULT_PROPS} deck={zhDeck} onPatchCard={onPatchCard} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
+
+    // Commit wrong answer on Q1 via "Got it"
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizDontKnow)) throw new Error('waiting');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizGotIt)) throw new Error('got it not found');
+    }, { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizGotIt)); });
+
+    // Wait for Q2 with back button
+    await waitFor(() => expect(screen.queryByText(t.quizBack)).toBeTruthy(), { timeout: 3000 });
+    onPatchCard.mockClear(); // clear hint-prefetch calls
+
+    await act(async () => { fireEvent.click(screen.getByText(t.quizBack)); });
+
+    expect(onPatchCard).toHaveBeenCalledOnce();
+  });
+
+  it('history resets when quiz is restarted', async () => {
+    await startZhQuiz();
+
+    // Answer Q1 wrong to build history
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizDontKnow)) throw new Error('waiting');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizGotIt)) throw new Error('got it not found');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizGotIt)); });
+
+    // Continue to summary by answering remaining questions
+    for (let i = 0; i < 4; i++) {
+      await waitFor(() => {
+        const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+        if (!ok) throw new Error('answer buttons not found');
+      }, { timeout: 5000 });
+      const beforeProg = screen.queryByText(/question \d+ of/i)?.textContent;
+      await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
+      await waitFor(() => {
+        const summary = screen.queryByText(t.quizSummaryTitle);
+        if (summary) return;
+        const newProg = screen.queryByText(/question \d+ of/i)?.textContent;
+        if (!newProg || newProg === beforeProg) throw new Error('not advanced');
+      }, { timeout: 5000 });
+    }
+
+    await waitFor(() => expect(screen.queryByText(t.quizSummaryTitle)).toBeTruthy(), { timeout: 5000 });
+
+    // Restart the quiz
+    await act(async () => { fireEvent.click(screen.getByText(t.quizRestart)); });
+
+    // Back to lobby — start again
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
+
+    // On Q1 with fresh history — back button should NOT be visible
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizKnowIt) && !screen.queryByText(t.quizDontKnow)) {
+        throw new Error('not on question screen');
+      }
+    }, { timeout: 3000 });
+    expect(screen.queryByText(t.quizBack)).toBeFalsy();
+  }, 30000);
+});
+
+// ─── Quiz-exclude toggle ──────────────────────────────────────────────────────
+
+describe('QuizMode — Quiz-exclude toggle', () => {
+  // pinyin: '' forces zh-pinyin type to fall back to 'reading' (self-report),
+  // so all questions show quizKnowIt/quizDontKnow buttons for consistent testing.
+  const zhDeck = Array.from({ length: 8 }, (_, i) =>
+    makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
+  );
+
+  async function startZhQuiz(deckOverride = zhDeck) {
+    render(<QuizMode {...DEFAULT_PROPS} deck={deckOverride} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
+    await waitFor(() => {
+      const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+      if (!ok) throw new Error('question phase not ready');
+    }, { timeout: 5000 });
+  }
+
+  it('shows quiz-disable button on question screen', async () => {
+    await startZhQuiz();
+    expect(screen.queryByText(t.quizDisable)).toBeTruthy();
+  });
+
+  it('shows quiz-disable button on feedback screen after wrong answer', async () => {
+    await startZhQuiz();
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizGotIt)) throw new Error('not on feedback');
+    }, { timeout: 3000 });
+    expect(screen.queryByText(t.quizDisable)).toBeTruthy();
+  });
+
+  it('clicking disable calls onPatchCard with quizDisabled: true', async () => {
+    const onPatchCard = vi.fn();
+    render(<QuizMode {...DEFAULT_PROPS} deck={zhDeck} onPatchCard={onPatchCard} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizDisable)) throw new Error('disable button not found');
+    }, { timeout: 5000 });
+
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+
+    expect(onPatchCard).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ quizDisabled: true })
+    );
+  });
+
+  it('excluding current card on question phase advances to next question', async () => {
+    await startZhQuiz();
+    const progressBefore = screen.queryByText(/question 1 of/i)?.textContent;
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+    await waitFor(() => {
+      const newProg = screen.queryByText(/question \d+ of/i)?.textContent;
+      if (!newProg || newProg === progressBefore) throw new Error('not advanced');
+    }, { timeout: 3000 });
+  });
+
+  it('excluding on last question goes to summary (not crash)', async () => {
+    // Build a 5-card deck, advance to last question, then exclude
+    // pinyin: '' forces zh-pinyin fallback to 'reading' so all Qs show knowIt/dontKnow
+    const smallDeck = Array.from({ length: 5 }, (_, i) =>
+      makeCard({ id: `s-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
+    );
+    render(<QuizMode {...DEFAULT_PROPS} deck={smallDeck} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    // Set count to 5
+    await act(async () => { fireEvent.click(screen.getByText('5')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
+
+    // Answer 4 questions correctly (advance to Q5)
+    for (let i = 0; i < 4; i++) {
+      await waitFor(() => {
+        const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+        if (!ok) throw new Error('answer buttons not found');
+      }, { timeout: 5000 });
+      const beforeProg = screen.queryByText(/question \d+ of/i)?.textContent;
+      await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
+      await waitFor(() => {
+        const summary = screen.queryByText(t.quizSummaryTitle);
+        if (summary) return;
+        const newProg = screen.queryByText(/question \d+ of/i)?.textContent;
+        if (!newProg || newProg === beforeProg) throw new Error('not advanced');
+      }, { timeout: 5000 });
+    }
+
+    // Should now be on Q5 — exclude it
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizDisable)) throw new Error('no disable button on last Q');
+    }, { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+
+    // Should go to summary, not crash
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizSummaryTitle)).toBeTruthy();
+    }, { timeout: 3000 });
+  }, 30000);
 });
 

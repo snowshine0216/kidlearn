@@ -2,12 +2,18 @@
 
 All notable changes to StarCards will be documented in this file.
 
-## [0.3.5.0] - 2026-04-14
+## [0.3.6.0] - 2026-04-14
 
 ### Fixed
 - **"Needs revise" now includes newly-added cards** — brand-new vocabulary cards (never reviewed) were being silently excluded from the "needs revise" quiz because the filter required a non-null timestamp. Cards with `nextReviewAt: null` now correctly appear as due for review.
 - **"Needs revise" ordered newest-first** — cards in the due-only quiz now appear in newest-first order (by day added), with same-day cards shuffled relative to each other. Previously all cards were shuffled randomly.
 - **Badge count matches quiz content** — the "N cards due for review" badge on the home screen now uses the same filter as the quiz itself, so the count is always accurate.
+
+## [0.3.5.0] - 2026-04-13
+
+### Added
+- **Back button in quiz** — after answering a question, a "← Back" button appears so you can undo your last answer and try again; the card's mastery is restored to its pre-answer state, and the history clears when you restart the quiz
+- **Quiz-exclude toggle** — each card in quiz mode (and in the card deck view) now has a "Skip in Quiz" button; excluded cards are hidden from all future quiz sessions until re-enabled with "Include in Quiz"
 
 ## [0.3.4.0] - 2026-04-13
 
