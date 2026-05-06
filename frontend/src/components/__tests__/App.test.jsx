@@ -91,3 +91,32 @@ describe('App handleDeleteCard', () => {
     expect(screen.getByLabelText('Delete apple')).toBeTruthy();
   });
 });
+
+describe('App review badge', () => {
+  it('counts failed future-scheduled cards as needing review', () => {
+    const card = {
+      id: 'failed-1',
+      word: 'pace',
+      emoji: '🚶',
+      sentence: 'I pace back and forth.',
+      color_theme: 'orange',
+      subject: 'english',
+      savedAt: Date.now(),
+      schemaVersion: 1,
+      knewIt: null,
+      reviewedAt: null,
+      mastery: 3,
+      reviewCount: 2,
+      lastReviewedAt: Date.now() - 1000,
+      nextReviewAt: Date.now() + 7 * 86400000,
+      needsPractice: true,
+      quizHints: null,
+      style: 'illustrated',
+    };
+    localStorage.setItem('starcards_deck', JSON.stringify([card]));
+
+    render(<App />);
+
+    expect(screen.getByText(/1 张需要复习/)).toBeTruthy();
+  });
+});
