@@ -209,6 +209,36 @@ describe('review eligibility', () => {
   it('caps numeric count at the available count', () => {
     expect(resolveQuizCount(20, 7)).toBe(7);
   });
+
+  it('resolveQuizCount returns 0 for count=0', () => {
+    expect(resolveQuizCount(0, 10)).toBe(0);
+  });
+
+  it('resolveQuizCount returns 0 for negative count', () => {
+    expect(resolveQuizCount(-5, 10)).toBe(0);
+  });
+
+  it('resolveQuizCount returns 0 for NaN count (non-numeric string)', () => {
+    expect(resolveQuizCount('abc', 10)).toBe(0);
+  });
+
+  it('resolveQuizCount handles null availableCount safely', () => {
+    expect(resolveQuizCount('all', null)).toBe(0);
+    expect(resolveQuizCount(5, null)).toBe(0);
+  });
+
+  it('resolveQuizCount handles undefined availableCount safely', () => {
+    expect(resolveQuizCount('all', undefined)).toBe(0);
+  });
+
+  it('getReviewEligibleCards orders newest savedAt day first', () => {
+    const NOW = 1_700_000_000_000;
+    const older = makeCard({ id: 'older', mastery: null, savedAt: NOW - 2 * 86400000 });
+    const newer = makeCard({ id: 'newer', mastery: null, savedAt: NOW });
+    const result = getReviewEligibleCards([older, newer], NOW);
+    expect(result[0].id).toBe('newer');
+    expect(result[1].id).toBe('older');
+  });
 });
 
 // ─── selectQuizCards ────────────────────────────────────────────────────────
@@ -238,6 +268,24 @@ describe('selectQuizCards', () => {
     const deck = [highMastery, nullMastery];
     const result = selectQuizCards(deck, 'english', 1, now);
     expect(result[0].id).toBe('null-1');
+  });
+
+  it('priority: failed cards come before neverReviewed cards', () => {
+    const now = Date.now();
+    const failed = makeCard({ id: 'failed', mastery: 3, nextReviewAt: now + 86400000, needsPractice: true });
+    const neverReviewed = makeCard({ id: 'never', mastery: null, nextReviewAt: null });
+    const result = selectQuizCards([neverReviewed, failed], 'english', 2, now);
+    expect(result[0].id).toBe('failed');
+    expect(result[1].id).toBe('never');
+  });
+
+  it('priority: neverReviewed cards come before overdue cards', () => {
+    const now = Date.now();
+    const overdue = makeCard({ id: 'overdue', mastery: 2, nextReviewAt: now - 1000 });
+    const neverReviewed = makeCard({ id: 'never', mastery: null, nextReviewAt: null });
+    const result = selectQuizCards([overdue, neverReviewed], 'english', 2, now);
+    expect(result[0].id).toBe('never');
+    expect(result[1].id).toBe('overdue');
   });
 
   it('does not include low-mastery cards before their next review time', () => {

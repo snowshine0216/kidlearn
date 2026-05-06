@@ -449,6 +449,66 @@ describe('QuizMode — Memory helper empty state', () => {
     expect(screen.getByText(/walking in a circle/i)).toBeTruthy();
     expect(container.querySelector('.quiz-hint-skeleton')).toBeNull();
   });
+
+  it('does not render the hint skeleton when mascot_message is the sole fallback', async () => {
+    vi.mocked(getQuizHint).mockImplementationOnce(() => new Promise(() => {}));
+    const deck = [
+      makeCard({
+        id: 'mascot-only',
+        subject: 'chinese',
+        word: '徘徊',
+        chinese: '徘徊',
+        pinyin: 'pái huái',
+        mnemonic: null,
+        mascot_message: 'Keep going!',
+        quizHints: null,
+        mastery: null,
+        nextReviewAt: null,
+      }),
+    ];
+
+    const { container } = render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await waitFor(() => expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    await waitFor(() => expect(screen.queryByText(t.quizDontKnow)).toBeTruthy(), { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+
+    // mascot_message is rendered in QuizFeedback (MC path), not in reading inline view —
+    // but hasFallbackMemory is true, so the skeleton should be suppressed regardless
+    expect(container.querySelector('.quiz-hint-skeleton')).toBeNull();
+  });
+
+  it('renders the hint skeleton when hint is loading and card has no fallback memory', async () => {
+    vi.mocked(getQuizHint).mockImplementationOnce(() => new Promise(() => {}));
+    const deck = [
+      makeCard({
+        id: 'no-fallback',
+        subject: 'chinese',
+        word: '徘徊',
+        chinese: '徘徊',
+        pinyin: 'pái huái',
+        mnemonic: null,
+        mascot_message: null,
+        quizHints: null,
+        mastery: null,
+        nextReviewAt: null,
+      }),
+    ];
+
+    const { container } = render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await waitFor(() => expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    await waitFor(() => expect(screen.queryByText(t.quizDontKnow)).toBeTruthy(), { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+
+    expect(container.querySelector('.quiz-hint-skeleton')).not.toBeNull();
+  });
 });
 
 // ─── dueOnly mode ─────────────────────────────────────────────────────────────
