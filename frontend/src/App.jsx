@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { getDueCards } from './lib/quizLogic';
+import { getReviewEligibleCards } from './lib/quizLogic';
 import { useDeck } from './hooks/useDeck';
 import { loadLang, saveLang, getStrings } from './lib/i18n';
 import TopBar from './components/TopBar';
@@ -32,7 +32,7 @@ export default function App() {
 
   const { deck, streak, addCard, deleteCard, touchStreak, updateCardMastery, patchCard } = useDeck(showToast);
 
-  const dueCount = getDueCards(deck).length;
+  const dueCount = getReviewEligibleCards(deck).length;
 
   function handleLangToggle() {
     const next = lang === 'zh' ? 'en' : 'zh';

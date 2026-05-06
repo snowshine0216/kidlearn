@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, shuffled, getDueCards } from '../lib/quizLogic';
+import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, getReviewEligibleCards, getReviewEligibleCardsForSubject } from '../lib/quizLogic';
 import { getQuizHint } from '../lib/quizHintApi';
 import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
 
 const EN_MODES = ['pronunciation', 'fill-blank', 'word-meaning', 'chinese-meaning'];
 const ZH_MODES = ['reading', 'zh-fill-blank', 'zh-pinyin'];
-const COUNT_OPTIONS = [5, 10, 20];
+const COUNT_OPTIONS = [5, 10, 20, 'all'];
 const COUNTDOWN_OPTIONS = [
   { seconds: 30, label: '30s' },
   { seconds: 60, label: '1 min' },
@@ -14,6 +14,17 @@ const COUNTDOWN_OPTIONS = [
   { seconds: 300, label: '5 min' },
 ];
 const PREFETCH_EAGER = 5;
+
+function hasHintContent(hint) {
+  if (!hint) return false;
+  return [hint.encouragement, hint.extraSentence, hint.pronunciationGuide]
+    .some(value => String(value ?? '').trim().length > 0);
+}
+
+function hasMemoryFallback(card) {
+  return [card.mnemonic, card.mascot_message]
+    .some(value => String(value ?? '').trim().length > 0);
+}
 
 // ─── QuizLobby ───────────────────────────────────────────────────────────────
 
@@ -25,8 +36,16 @@ function QuizLobby({ t, deck, onStart, onClose }) {
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
 
-  const subjectDeck = deck.filter(c => c.subject === subject);
-  const canStart = subjectDeck.length >= 5;
+  const subjectDeck = getReviewEligibleCardsForSubject(deck, subject);
+  const availableCount = subjectDeck.length;
+  const canStart = availableCount > 0;
+
+  useEffect(() => {
+    if (availableCount === 0) return;
+    if (count !== 'all' && count > availableCount) {
+      setCount('all');
+    }
+  }, [availableCount, count]);
 
   async function handleStart() {
     if (inFlightRef.current) return;
@@ -67,22 +86,25 @@ function QuizLobby({ t, deck, onStart, onClose }) {
           {t.quizCountLabel}
         </p>
         <div className="flex gap-3">
-          {COUNT_OPTIONS.map(n => {
-            const tooFew = subjectDeck.length < n;
+          {COUNT_OPTIONS.map(option => {
+            const isAll = option === 'all';
+            const disabled = isAll ? availableCount === 0 : availableCount < option;
+            const selected = count === option && !disabled;
+            const label = isAll ? t.quizCountAll : option;
             return (
               <button
-                key={n}
-                disabled={tooFew}
-                onClick={() => setCount(n)}
+                key={option}
+                disabled={disabled}
+                onClick={() => setCount(option)}
                 className="flex-1 py-3 rounded-xl font-bold text-xl transition-all"
                 style={{
-                  background: count === n && !tooFew ? 'var(--color-primary)' : 'var(--color-primary-light)',
-                  color: count === n && !tooFew ? 'white' : tooFew ? '#bbb' : 'var(--color-primary-dark)',
-                  cursor: tooFew ? 'not-allowed' : 'pointer',
-                  opacity: tooFew ? 0.5 : 1,
+                  background: selected ? 'var(--color-primary)' : 'var(--color-primary-light)',
+                  color: selected ? 'white' : disabled ? '#bbb' : 'var(--color-primary-dark)',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.5 : 1,
                 }}
               >
-                {n}
+                {label}
               </button>
             );
           })}
@@ -163,6 +185,8 @@ function QuizProgress({ current, total, t }) {
 function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, onCorrectSelfReport, isLast, onBack, onToggleQuizDisabled, isQuizDisabled }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
   const memoryHint = card.quizHints?.[type] ?? null;
+  const hasMemoryHint = hasHintContent(memoryHint);
+  const hasFallbackMemory = hasMemoryFallback(card);
   const { showCountdown = false, countdownInterval = 30 } = settings ?? {};
   const [showHint, setShowHint] = useState(false);
   const [chosen, setChosen] = useState(null);
@@ -293,13 +317,16 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
           💡 {card.mnemonic}
         </p>
       )}
+      {card.mascot_message && (
+        <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>{card.mascot_message}</p>
+      )}
 
       {/* AI memory tips */}
       <div className="rounded-xl p-3 mt-3 text-left" style={{ background: 'var(--color-warm-light)' }}>
         <p className="font-bold text-sm mb-2">{t.quizMemoryHelper}</p>
-        {hintLoading ? (
+        {hintLoading && !hasFallbackMemory ? (
           <div className="quiz-hint-skeleton" />
-        ) : memoryHint ? (
+        ) : hasMemoryHint ? (
           <>
             <p className="text-sm mb-1">{memoryHint.encouragement}</p>
             <p className="text-sm italic mb-1">{memoryHint.extraSentence}</p>
@@ -533,6 +560,8 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
   const { card } = question;
   const [showMemory, setShowMemory] = useState(!correct);
   const hint = card.quizHints?.[question.type] ?? null;
+  const hasMemoryHint = hasHintContent(hint);
+  const hasFallbackMemory = hasMemoryFallback(card);
 
   const mascotCorrect = t.quizMascotCorrect;
   const mascotEmpathy = t.quizMascotEmpathy;
@@ -575,9 +604,9 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
             {card.mnemonic && (
               <p className="text-sm mb-2">{card.mnemonic}</p>
             )}
-            {hintLoading ? (
+            {hintLoading && !hasFallbackMemory ? (
               <div className="quiz-hint-skeleton" />
-            ) : hint ? (
+            ) : hasMemoryHint ? (
               <>
                 <p className="text-sm mb-1">{hint.encouragement}</p>
                 <p className="text-sm italic mb-1">{hint.extraSentence}</p>
@@ -724,7 +753,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   useEffect(() => {
     if (!dueOnly) return;
     const now = Date.now();
-    const dueCards = getDueCards(deck, now).filter(c => !c.quizDisabled);
+    const dueCards = getReviewEligibleCards(deck, now).filter(c => !c.quizDisabled);
     if (dueCards.length === 0) return; // no due cards → fall back to lobby
 
     // Single-pass map: preserves newest-first day ordering AND interleaves EN/ZH naturally.
@@ -778,8 +807,10 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   async function handleStart({ subject, count, showCountdown, countdownInterval }) {
     setQuizSettings({ showCountdown, countdownInterval });
     const modes = subject === 'english' ? EN_MODES : ZH_MODES;
-    const selected = selectQuizCards(deck, subject, count);
+    const now = Date.now();
+    const selected = selectQuizCards(deck, subject, count, now);
     const built = buildQuestions(selected, deck, modes);
+    if (built.length === 0) return; // guard: no eligible cards at start time
     setQuestions(built);
     setCurrentIdx(0);
     setResults([]);

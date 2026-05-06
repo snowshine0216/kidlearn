@@ -48,35 +48,75 @@ export function getDueCards(deck, now = Date.now()) {
     .flatMap(key => shuffled(grouped[key]));
 }
 
+// ─── review eligibility ──────────────────────────────────────────────────────
+
+const isNeverReviewed = (card) =>
+  card.mastery === null || card.mastery === undefined || card.nextReviewAt === null;
+
+const isFailedPractice = (card) => card.needsPractice === true;
+
+/**
+ * Returns true when a card should appear in review experiences.
+ * Combines never-reviewed cards, overdue scheduled cards, and failed cards.
+ */
+export function isReviewEligibleCard(card, now = Date.now()) {
+  if (card.quizDisabled) return false;
+  return isFailedPractice(card) || isNeverReviewed(card) || isDueCard(card, now);
+}
+
+/**
+ * Returns review-eligible cards, newest-first by savedAt day.
+ * Cards added on the same day are shuffled relative to each other.
+ */
+export function getReviewEligibleCards(deck, now = Date.now()) {
+  const eligible = deck.filter(c => isReviewEligibleCard(c, now));
+  const dayBucket = c => Math.floor((c.savedAt || 0) / 86400000);
+  const grouped = {};
+  for (const c of eligible) {
+    const key = dayBucket(c);
+    (grouped[key] = grouped[key] ?? []).push(c);
+  }
+  return Object.keys(grouped)
+    .sort((a, b) => Number(b) - Number(a))
+    .flatMap(key => shuffled(grouped[key]));
+}
+
+export function getReviewEligibleCardsForSubject(deck, subject, now = Date.now()) {
+  return getReviewEligibleCards(deck, now).filter(c => c.subject === subject);
+}
+
+export function resolveQuizCount(count, availableCount) {
+  const safeAvailable = Math.max(0, availableCount ?? 0);
+  if (count === 'all') return safeAvailable;
+  const numeric = Number(count);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  return Math.min(numeric, safeAvailable);
+}
+
 // ─── selectQuizCards ─────────────────────────────────────────────────────────
 
 /**
- * Selects up to `count` cards for a quiz session.
+ * Selects up to `count` review-eligible cards for a quiz session.
  * Priority:
- *   1. Never reviewed (mastery === null)
- *   2. Overdue for review (nextReviewAt <= now)
- *   3. Learning (mastery < 3, not overdue)
- *   4. Mastered (mastery >= 3, not overdue)
+ *   1. Failed cards (needsPractice === true)
+ *   2. Never reviewed cards
+ *   3. Overdue cards
  */
-export function selectQuizCards(deck, subject, count) {
-  const filtered = deck.filter(c => c.subject === subject && !c.quizDisabled);
-  const now = Date.now();
+export function selectQuizCards(deck, subject, count, now = Date.now()) {
+  const eligible = getReviewEligibleCardsForSubject(deck, subject, now);
+  const requested = resolveQuizCount(count, eligible.length);
 
-  const hasReviewed = c => c.mastery !== null && c.mastery !== undefined;
-  const isOverdue = c => hasReviewed(c) && c.nextReviewAt != null && c.nextReviewAt <= now;
-
-  const priority0 = filtered.filter(c => !hasReviewed(c));
-  const priority1 = filtered.filter(c => isOverdue(c));
-  const priority2 = filtered.filter(c => hasReviewed(c) && !isOverdue(c) && c.mastery < 3);
-  const priority3 = filtered.filter(c => hasReviewed(c) && !isOverdue(c) && c.mastery >= 3);
+  const failed = eligible.filter(c => isFailedPractice(c));
+  const neverReviewed = eligible.filter(c => !isFailedPractice(c) && isNeverReviewed(c));
+  const overdue = eligible.filter(c => !isFailedPractice(c) && !isNeverReviewed(c) && isDueCard(c, now));
 
   const ordered = [
-    ...shuffled(priority0),
-    ...shuffled(priority1),
-    ...shuffled(priority2),
-    ...shuffled(priority3),
+    ...shuffled(failed),
+    ...shuffled(neverReviewed),
+    ...shuffled(overdue),
   ];
-  return ordered.slice(0, count);
+
+  return ordered.slice(0, requested);
 }
 
 // ─── pickWrongAnswers ────────────────────────────────────────────────────────
@@ -260,6 +300,7 @@ export function applyMasteryResult(card, correct) {
     reviewCount: currentReviewCount + 1,
     lastReviewedAt: Date.now(),
     nextReviewAt: computeNextReviewAt(card.mastery, correct),
+    needsPractice: !correct,
   };
 }
 

@@ -45,6 +45,7 @@ describe('useDeck', () => {
     const stored = JSON.parse(localStorage.getItem('starcards_deck'));
     expect(stored).toHaveLength(1);
     expect(stored[0].word).toBe('butterfly');
+    expect(stored[0].needsPractice).toBe(false);
   });
 
   it('addCard returns the saved card object with an id', () => {
@@ -55,6 +56,15 @@ describe('useDeck', () => {
     expect(typeof saved.id).toBe('string');
     expect(saved.word).toBe('butterfly');
     expect(saved.id).toBe(result.current.deck[0].id);
+  });
+
+  it('migrates cards with needsPractice defaulting to false', () => {
+    const storedCard = { ...mockCard, id: 'stored-1', savedAt: Date.now(), schemaVersion: 1 };
+    localStorageMock.setItem('starcards_deck', JSON.stringify([storedCard]));
+
+    const { result } = renderHook(() => useDeck());
+
+    expect(result.current.deck[0].needsPractice).toBe(false);
   });
 
   it('deleteCard removes card', () => {

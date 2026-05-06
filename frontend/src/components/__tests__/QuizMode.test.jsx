@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import QuizMode from '../QuizMode';
 import { getStrings } from '../../lib/i18n';
+import { getQuizHint } from '../../lib/quizHintApi';
 
 // Mock quizHintApi to avoid real fetch
 vi.mock('../../lib/quizHintApi', () => ({
@@ -71,11 +72,12 @@ describe('QuizMode — Lobby', () => {
     expect(screen.getByText(/chinese/i)).toBeTruthy();
   });
 
-  it('renders count presets: 5, 10, 20', () => {
+  it('renders count presets: 5, 10, 20, All', () => {
     render(<QuizMode {...DEFAULT_PROPS} />);
     expect(screen.getByText('5')).toBeTruthy();
     expect(screen.getByText('10')).toBeTruthy();
     expect(screen.getByText('20')).toBeTruthy();
+    expect(screen.getByText('All')).toBeTruthy();
   });
 
   it('disables count presets that exceed deck size', () => {
@@ -85,10 +87,46 @@ describe('QuizMode — Lobby', () => {
     expect(btn20.disabled).toBe(true);
   });
 
-  it('Start button is disabled when deck has < 5 cards', () => {
-    render(<QuizMode {...DEFAULT_PROPS} deck={makeDeck(3)} />);
-    const startBtn = screen.getByRole('button', { name: /start/i });
-    expect(startBtn.disabled).toBe(true);
+  it('enables Start with fewer than five eligible cards by selecting All', async () => {
+    const smallDeck = makeDeck(3);
+    render(<QuizMode {...DEFAULT_PROPS} deck={smallDeck} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('All').closest('button').disabled).toBe(false);
+      expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false);
+    });
+  });
+
+  it('disables Start when the selected subject has no eligible cards', () => {
+    const now = Date.now();
+    const futureDeck = makeDeck(6).map((card) => ({
+      ...card,
+      mastery: 3,
+      nextReviewAt: now + 7 * 86400000,
+      needsPractice: false,
+    }));
+
+    render(<QuizMode {...DEFAULT_PROPS} deck={futureDeck} />);
+
+    expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(true);
+  });
+
+  it('All starts a quiz with every eligible card for the selected subject', async () => {
+    const now = Date.now();
+    const deck = [
+      makeCard({ id: 'new-1', word: 'new1', mastery: null, nextReviewAt: null }),
+      makeCard({ id: 'failed-1', word: 'failed1', mastery: 3, nextReviewAt: now + 86400000, needsPractice: true }),
+      makeCard({ id: 'due-1', word: 'due1', mastery: 3, nextReviewAt: now - 1000 }),
+      makeCard({ id: 'future-1', word: 'future1', mastery: 3, nextReviewAt: now + 86400000 }),
+    ];
+
+    render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+    await act(async () => { fireEvent.click(screen.getByText('All')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    await waitFor(() => {
+      expect(screen.getByText(/question 1 of 3/i)).toBeTruthy();
+    }, { timeout: 3000 });
   });
 
   it('renders a Start button', () => {
@@ -379,6 +417,100 @@ describe('QuizMode — Chinese new question types', () => {
   }, 30000);
 });
 
+// ─── Memory helper empty state ────────────────────────────────────────────────
+
+describe('QuizMode — Memory helper empty state', () => {
+  it('does not render the hint skeleton while fallback memory text is already visible', async () => {
+    vi.mocked(getQuizHint).mockImplementationOnce(() => new Promise(() => {}));
+    const deck = [
+      makeCard({
+        id: 'reading-1',
+        subject: 'chinese',
+        word: '徘徊',
+        chinese: '徘徊',
+        pinyin: 'pái huái',
+        mnemonic: 'Think of walking in a circle.',
+        mascot_message: null,
+        quizHints: null,
+        mastery: null,
+        nextReviewAt: null,
+      }),
+    ];
+
+    const { container } = render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await waitFor(() => expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    await waitFor(() => expect(screen.queryByText(t.quizDontKnow)).toBeTruthy(), { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+
+    expect(screen.getByText(/walking in a circle/i)).toBeTruthy();
+    expect(container.querySelector('.quiz-hint-skeleton')).toBeNull();
+  });
+
+  it('does not render the hint skeleton when mascot_message is the sole fallback', async () => {
+    vi.mocked(getQuizHint).mockImplementationOnce(() => new Promise(() => {}));
+    const deck = [
+      makeCard({
+        id: 'mascot-only',
+        subject: 'chinese',
+        word: '徘徊',
+        chinese: '徘徊',
+        pinyin: 'pái huái',
+        mnemonic: null,
+        mascot_message: 'Keep going!',
+        quizHints: null,
+        mastery: null,
+        nextReviewAt: null,
+      }),
+    ];
+
+    const { container } = render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await waitFor(() => expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    await waitFor(() => expect(screen.queryByText(t.quizDontKnow)).toBeTruthy(), { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+
+    // mascot_message is rendered in QuizFeedback (MC path), not in reading inline view —
+    // but hasFallbackMemory is true, so the skeleton should be suppressed regardless
+    expect(container.querySelector('.quiz-hint-skeleton')).toBeNull();
+  });
+
+  it('renders the hint skeleton when hint is loading and card has no fallback memory', async () => {
+    vi.mocked(getQuizHint).mockImplementationOnce(() => new Promise(() => {}));
+    const deck = [
+      makeCard({
+        id: 'no-fallback',
+        subject: 'chinese',
+        word: '徘徊',
+        chinese: '徘徊',
+        pinyin: 'pái huái',
+        mnemonic: null,
+        mascot_message: null,
+        quizHints: null,
+        mastery: null,
+        nextReviewAt: null,
+      }),
+    ];
+
+    const { container } = render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await waitFor(() => expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    await waitFor(() => expect(screen.queryByText(t.quizDontKnow)).toBeTruthy(), { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+
+    expect(container.querySelector('.quiz-hint-skeleton')).not.toBeNull();
+  });
+});
+
 // ─── dueOnly mode ─────────────────────────────────────────────────────────────
 
 describe('QuizMode — dueOnly mode', () => {
@@ -403,9 +535,15 @@ describe('QuizMode — dueOnly mode', () => {
     await waitFor(() => expect(screen.getByText(/question 1/i)).toBeTruthy(), { timeout: 3000 });
   });
 
-  it('falls back to lobby when dueOnly=true but no due cards exist', () => {
-    // makeDeck cards have nextReviewAt: undefined — not due
-    render(<QuizMode {...DEFAULT_PROPS} dueOnly />);
+  it('falls back to lobby when dueOnly=true but no eligible cards exist', () => {
+    const now = Date.now();
+    const futureDeck = makeDeck(8).map(card => ({
+      ...card,
+      mastery: 3,
+      nextReviewAt: now + 7 * 86400000,
+      needsPractice: false,
+    }));
+    render(<QuizMode {...DEFAULT_PROPS} deck={futureDeck} dueOnly />);
     expect(screen.getByRole('button', { name: /start/i })).toBeTruthy();
   });
 
@@ -416,9 +554,15 @@ describe('QuizMode — dueOnly mode', () => {
 
   it('dueOnly excludes quizDisabled cards from auto-start', async () => {
     const now = Date.now();
-    // Only due card is disabled — no valid due cards
-    const disabledDue = makeCard({ id: 'disabled-due', mastery: 1, nextReviewAt: now - 1000, quizDisabled: true });
-    const deck = [disabledDue, ...makeDeck(7)];
+    // Only eligible card is disabled — no valid eligible cards remain
+    const disabledEligible = makeCard({ id: 'disabled-due', mastery: null, nextReviewAt: null, quizDisabled: true });
+    const futureDeck = makeDeck(7).map(card => ({
+      ...card,
+      mastery: 3,
+      nextReviewAt: now + 7 * 86400000,
+      needsPractice: false,
+    }));
+    const deck = [disabledEligible, ...futureDeck];
     render(<QuizMode {...DEFAULT_PROPS} deck={deck} dueOnly />);
     // Falls back to lobby because disabled card was excluded
     expect(screen.getByRole('button', { name: /start/i })).toBeTruthy();

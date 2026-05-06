@@ -3,6 +3,10 @@ import {
   shuffled,
   isDueCard,
   getDueCards,
+  isReviewEligibleCard,
+  getReviewEligibleCards,
+  getReviewEligibleCardsForSubject,
+  resolveQuizCount,
   selectQuizCards,
   buildQuestions,
   buildQuestion,
@@ -30,6 +34,8 @@ const makeCard = (overrides = {}) => ({
   mastery: null,
   reviewCount: null,
   lastReviewedAt: null,
+  nextReviewAt: null,
+  needsPractice: false,
   ...overrides,
 });
 
@@ -142,6 +148,99 @@ describe('getDueCards', () => {
   });
 });
 
+// ─── review eligibility ─────────────────────────────────────────────────────
+
+describe('review eligibility', () => {
+  const NOW = 1_700_000_000_000;
+
+  it('treats never-reviewed cards as review-eligible', () => {
+    const card = makeCard({ mastery: null, nextReviewAt: NOW + 10 * 86400000 });
+    expect(isReviewEligibleCard(card, NOW)).toBe(true);
+  });
+
+  it('treats overdue cards as review-eligible', () => {
+    const card = makeCard({ mastery: 2, nextReviewAt: NOW - 1000 });
+    expect(isReviewEligibleCard(card, NOW)).toBe(true);
+  });
+
+  it('treats failed cards as review-eligible even when scheduled in the future', () => {
+    const card = makeCard({ mastery: 2, nextReviewAt: NOW + 10 * 86400000, needsPractice: true });
+    expect(isReviewEligibleCard(card, NOW)).toBe(true);
+  });
+
+  it('does not treat low mastery alone as review-eligible', () => {
+    const card = makeCard({ mastery: 1, nextReviewAt: NOW + 10 * 86400000, needsPractice: false });
+    expect(isReviewEligibleCard(card, NOW)).toBe(false);
+  });
+
+  it('excludes quiz-disabled cards from review eligibility', () => {
+    const card = makeCard({ mastery: null, nextReviewAt: null, quizDisabled: true });
+    expect(isReviewEligibleCard(card, NOW)).toBe(false);
+  });
+
+  it('returns review-eligible cards and excludes disabled cards', () => {
+    const due = makeCard({ id: 'due', mastery: 2, nextReviewAt: NOW - 1000 });
+    const future = makeCard({ id: 'future', mastery: 2, nextReviewAt: NOW + 1000 });
+    const failed = makeCard({ id: 'failed', mastery: 2, nextReviewAt: NOW + 1000, needsPractice: true });
+    const disabled = makeCard({ id: 'disabled', mastery: null, quizDisabled: true });
+
+    const result = getReviewEligibleCards([future, disabled, failed, due], NOW);
+    const ids = result.map(c => c.id);
+
+    expect(ids).toEqual(expect.arrayContaining(['due', 'failed']));
+    expect(ids).not.toContain('future');
+    expect(ids).not.toContain('disabled');
+  });
+
+  it('filters review-eligible cards by subject', () => {
+    const english = makeCard({ id: 'en', subject: 'english', mastery: null });
+    const chinese = makeZhCard({ id: 'zh', subject: 'chinese', mastery: null, nextReviewAt: null });
+
+    const result = getReviewEligibleCardsForSubject([english, chinese], 'chinese', NOW);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('zh');
+  });
+
+  it('resolves all count to the available count', () => {
+    expect(resolveQuizCount('all', 7)).toBe(7);
+  });
+
+  it('caps numeric count at the available count', () => {
+    expect(resolveQuizCount(20, 7)).toBe(7);
+  });
+
+  it('resolveQuizCount returns 0 for count=0', () => {
+    expect(resolveQuizCount(0, 10)).toBe(0);
+  });
+
+  it('resolveQuizCount returns 0 for negative count', () => {
+    expect(resolveQuizCount(-5, 10)).toBe(0);
+  });
+
+  it('resolveQuizCount returns 0 for NaN count (non-numeric string)', () => {
+    expect(resolveQuizCount('abc', 10)).toBe(0);
+  });
+
+  it('resolveQuizCount handles null availableCount safely', () => {
+    expect(resolveQuizCount('all', null)).toBe(0);
+    expect(resolveQuizCount(5, null)).toBe(0);
+  });
+
+  it('resolveQuizCount handles undefined availableCount safely', () => {
+    expect(resolveQuizCount('all', undefined)).toBe(0);
+  });
+
+  it('getReviewEligibleCards orders newest savedAt day first', () => {
+    const NOW = 1_700_000_000_000;
+    const older = makeCard({ id: 'older', mastery: null, savedAt: NOW - 2 * 86400000 });
+    const newer = makeCard({ id: 'newer', mastery: null, savedAt: NOW });
+    const result = getReviewEligibleCards([older, newer], NOW);
+    expect(result[0].id).toBe('newer');
+    expect(result[1].id).toBe('older');
+  });
+});
+
 // ─── selectQuizCards ────────────────────────────────────────────────────────
 
 describe('selectQuizCards', () => {
@@ -163,19 +262,38 @@ describe('selectQuizCards', () => {
   });
 
   it('prefers cards with null mastery', () => {
-    const nullMastery = makeCard({ id: 'null-1', mastery: null });
-    const highMastery = makeCard({ id: 'high-1', mastery: 5 });
+    const now = Date.now();
+    const nullMastery = makeCard({ id: 'null-1', mastery: null, nextReviewAt: null });
+    const highMastery = makeCard({ id: 'high-1', mastery: 5, nextReviewAt: now + 86400000 });
     const deck = [highMastery, nullMastery];
-    const result = selectQuizCards(deck, 'english', 1);
+    const result = selectQuizCards(deck, 'english', 1, now);
     expect(result[0].id).toBe('null-1');
   });
 
-  it('prefers cards with low mastery (< 3) over high mastery', () => {
-    const low = makeCard({ id: 'low-1', mastery: 1 });
-    const high = makeCard({ id: 'high-1', mastery: 4 });
-    const deck = [high, low];
-    const result = selectQuizCards(deck, 'english', 1);
-    expect(result[0].id).toBe('low-1');
+  it('priority: failed cards come before neverReviewed cards', () => {
+    const now = Date.now();
+    const failed = makeCard({ id: 'failed', mastery: 3, nextReviewAt: now + 86400000, needsPractice: true });
+    const neverReviewed = makeCard({ id: 'never', mastery: null, nextReviewAt: null });
+    const result = selectQuizCards([neverReviewed, failed], 'english', 2, now);
+    expect(result[0].id).toBe('failed');
+    expect(result[1].id).toBe('never');
+  });
+
+  it('priority: neverReviewed cards come before overdue cards', () => {
+    const now = Date.now();
+    const overdue = makeCard({ id: 'overdue', mastery: 2, nextReviewAt: now - 1000 });
+    const neverReviewed = makeCard({ id: 'never', mastery: null, nextReviewAt: null });
+    const result = selectQuizCards([overdue, neverReviewed], 'english', 2, now);
+    expect(result[0].id).toBe('never');
+    expect(result[1].id).toBe('overdue');
+  });
+
+  it('does not include low-mastery cards before their next review time', () => {
+    const now = Date.now();
+    const lowMasteryFuture = makeCard({ id: 'low-future', mastery: 1, nextReviewAt: now + 86400000 });
+    const due = makeCard({ id: 'due', mastery: 3, nextReviewAt: now - 1000 });
+    const result = selectQuizCards([lowMasteryFuture, due], 'english', 10, now);
+    expect(result.map(c => c.id)).toEqual(['due']);
   });
 
   it('returns no duplicate cards', () => {
@@ -189,6 +307,29 @@ describe('selectQuizCards', () => {
     const deck = makeDeck(3);
     const result = selectQuizCards(deck, 'english', 10);
     expect(result).toHaveLength(3);
+  });
+
+  it('selects only review-eligible cards', () => {
+    const now = Date.now();
+    const due = makeCard({ id: 'due', mastery: 2, nextReviewAt: now - 1000 });
+    const failed = makeCard({ id: 'failed', mastery: 3, nextReviewAt: now + 86400000, needsPractice: true });
+    const future = makeCard({ id: 'future', mastery: 3, nextReviewAt: now + 86400000, needsPractice: false });
+    const result = selectQuizCards([future, failed, due], 'english', 10, now);
+    const ids = result.map(c => c.id);
+    expect(ids).toEqual(expect.arrayContaining(['due', 'failed']));
+    expect(ids).not.toContain('future');
+  });
+
+  it('returns all eligible cards when count is all', () => {
+    const now = Date.now();
+    const deck = [
+      makeCard({ id: 'new-1', mastery: null, nextReviewAt: null }),
+      makeCard({ id: 'due-1', mastery: 2, nextReviewAt: now - 1000 }),
+      makeCard({ id: 'future-1', mastery: 3, nextReviewAt: now + 86400000 }),
+    ];
+    const result = selectQuizCards(deck, 'english', 'all', now);
+    expect(result).toHaveLength(2);
+    expect(result.map(c => c.id)).toEqual(expect.arrayContaining(['new-1', 'due-1']));
   });
 
   it('returns empty array if no cards match subject', () => {
@@ -576,6 +717,18 @@ describe('applyMasteryResult', () => {
     const card = makeCard({ mastery: 2, nextReviewAt: null });
     applyMasteryResult(card, true);
     expect(card.nextReviewAt).toBeNull();
+  });
+
+  it('sets needsPractice on wrong answer', () => {
+    const card = makeCard({ mastery: 2, needsPractice: false });
+    const result = applyMasteryResult(card, false);
+    expect(result.needsPractice).toBe(true);
+  });
+
+  it('clears needsPractice on correct answer', () => {
+    const card = makeCard({ mastery: 2, needsPractice: true });
+    const result = applyMasteryResult(card, true);
+    expect(result.needsPractice).toBe(false);
   });
 
   it('handles null reviewCount → result.reviewCount is 1', () => {

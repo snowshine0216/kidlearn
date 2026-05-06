@@ -18,6 +18,7 @@ function migrateCard(card) {
     reviewCount: null,
     lastReviewedAt: null,
     nextReviewAt: null,  // timestamp when card is due for spaced-repetition review
+    needsPractice: false, // true when card was answered wrong in last quiz session
     quizHints: null,     // { [type]: QuizHint } — cached per quiz type
     ...card,             // existing fields override defaults
   };
