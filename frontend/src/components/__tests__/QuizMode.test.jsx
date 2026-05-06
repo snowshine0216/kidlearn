@@ -417,6 +417,40 @@ describe('QuizMode — Chinese new question types', () => {
   }, 30000);
 });
 
+// ─── Memory helper empty state ────────────────────────────────────────────────
+
+describe('QuizMode — Memory helper empty state', () => {
+  it('does not render the hint skeleton while fallback memory text is already visible', async () => {
+    vi.mocked(getQuizHint).mockImplementationOnce(() => new Promise(() => {}));
+    const deck = [
+      makeCard({
+        id: 'reading-1',
+        subject: 'chinese',
+        word: '徘徊',
+        chinese: '徘徊',
+        pinyin: 'pái huái',
+        mnemonic: 'Think of walking in a circle.',
+        mascot_message: null,
+        quizHints: null,
+        mastery: null,
+        nextReviewAt: null,
+      }),
+    ];
+
+    const { container } = render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await waitFor(() => expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    await waitFor(() => expect(screen.queryByText(t.quizDontKnow)).toBeTruthy(), { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
+
+    expect(screen.getByText(/walking in a circle/i)).toBeTruthy();
+    expect(container.querySelector('.quiz-hint-skeleton')).toBeNull();
+  });
+});
+
 // ─── dueOnly mode ─────────────────────────────────────────────────────────────
 
 describe('QuizMode — dueOnly mode', () => {

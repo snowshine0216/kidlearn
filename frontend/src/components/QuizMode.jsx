@@ -15,6 +15,17 @@ const COUNTDOWN_OPTIONS = [
 ];
 const PREFETCH_EAGER = 5;
 
+function hasHintContent(hint) {
+  if (!hint) return false;
+  return [hint.encouragement, hint.extraSentence, hint.pronunciationGuide]
+    .some(value => String(value ?? '').trim().length > 0);
+}
+
+function hasMemoryFallback(card) {
+  return [card.mnemonic, card.mascot_message]
+    .some(value => String(value ?? '').trim().length > 0);
+}
+
 // ─── QuizLobby ───────────────────────────────────────────────────────────────
 
 function QuizLobby({ t, deck, onStart, onClose }) {
@@ -174,6 +185,8 @@ function QuizProgress({ current, total, t }) {
 function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, onCorrectSelfReport, isLast, onBack, onToggleQuizDisabled, isQuizDisabled }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
   const memoryHint = card.quizHints?.[type] ?? null;
+  const hasMemoryHint = hasHintContent(memoryHint);
+  const hasFallbackMemory = hasMemoryFallback(card);
   const { showCountdown = false, countdownInterval = 30 } = settings ?? {};
   const [showHint, setShowHint] = useState(false);
   const [chosen, setChosen] = useState(null);
@@ -308,9 +321,9 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
       {/* AI memory tips */}
       <div className="rounded-xl p-3 mt-3 text-left" style={{ background: 'var(--color-warm-light)' }}>
         <p className="font-bold text-sm mb-2">{t.quizMemoryHelper}</p>
-        {hintLoading ? (
+        {hintLoading && !hasFallbackMemory ? (
           <div className="quiz-hint-skeleton" />
-        ) : memoryHint ? (
+        ) : hasMemoryHint ? (
           <>
             <p className="text-sm mb-1">{memoryHint.encouragement}</p>
             <p className="text-sm italic mb-1">{memoryHint.extraSentence}</p>
@@ -544,6 +557,8 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
   const { card } = question;
   const [showMemory, setShowMemory] = useState(!correct);
   const hint = card.quizHints?.[question.type] ?? null;
+  const hasMemoryHint = hasHintContent(hint);
+  const hasFallbackMemory = hasMemoryFallback(card);
 
   const mascotCorrect = t.quizMascotCorrect;
   const mascotEmpathy = t.quizMascotEmpathy;
@@ -586,9 +601,9 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
             {card.mnemonic && (
               <p className="text-sm mb-2">{card.mnemonic}</p>
             )}
-            {hintLoading ? (
+            {hintLoading && !hasFallbackMemory ? (
               <div className="quiz-hint-skeleton" />
-            ) : hint ? (
+            ) : hasMemoryHint ? (
               <>
                 <p className="text-sm mb-1">{hint.encouragement}</p>
                 <p className="text-sm italic mb-1">{hint.extraSentence}</p>
