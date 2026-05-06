@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, shuffled, getDueCards, getReviewEligibleCards, getReviewEligibleCardsForSubject } from '../lib/quizLogic';
+import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, getReviewEligibleCards, getReviewEligibleCardsForSubject } from '../lib/quizLogic';
 import { getQuizHint } from '../lib/quizHintApi';
 import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';

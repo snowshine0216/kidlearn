@@ -48,7 +48,7 @@ export function getDueCards(deck, now = Date.now()) {
     .flatMap(key => shuffled(grouped[key]));
 }
 
-// ─── review eligibility ──────────────────────────────────────────────────────────────────────────────────────────
+// ─── review eligibility ──────────────────────────────────────────────────────
 
 const isNeverReviewed = (card) =>
   card.mastery === null || card.mastery === undefined || card.nextReviewAt === null;
