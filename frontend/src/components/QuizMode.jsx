@@ -317,6 +317,9 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
           💡 {card.mnemonic}
         </p>
       )}
+      {card.mascot_message && (
+        <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>{card.mascot_message}</p>
+      )}
 
       {/* AI memory tips */}
       <div className="rounded-xl p-3 mt-3 text-left" style={{ background: 'var(--color-warm-light)' }}>
@@ -804,8 +807,10 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   async function handleStart({ subject, count, showCountdown, countdownInterval }) {
     setQuizSettings({ showCountdown, countdownInterval });
     const modes = subject === 'english' ? EN_MODES : ZH_MODES;
-    const selected = selectQuizCards(deck, subject, count);
+    const now = Date.now();
+    const selected = selectQuizCards(deck, subject, count, now);
     const built = buildQuestions(selected, deck, modes);
+    if (built.length === 0) return; // guard: no eligible cards at start time
     setQuestions(built);
     setCurrentIdx(0);
     setResults([]);

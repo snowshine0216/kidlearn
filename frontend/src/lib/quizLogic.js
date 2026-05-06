@@ -71,10 +71,11 @@ export function isReviewEligibleCard(card, now = Date.now()) {
 export function getReviewEligibleCards(deck, now = Date.now()) {
   const eligible = deck.filter(c => isReviewEligibleCard(c, now));
   const dayBucket = c => Math.floor((c.savedAt || 0) / 86400000);
-  const grouped = eligible.reduce((acc, c) => {
+  const grouped = {};
+  for (const c of eligible) {
     const key = dayBucket(c);
-    return { ...acc, [key]: [...(acc[key] ?? []), c] };
-  }, {});
+    (grouped[key] = grouped[key] ?? []).push(c);
+  }
   return Object.keys(grouped)
     .sort((a, b) => Number(b) - Number(a))
     .flatMap(key => shuffled(grouped[key]));
