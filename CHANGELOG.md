@@ -2,6 +2,22 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.7.0] - 2026-05-06
+
+### Added
+- **"All" quiz count option** — the quiz lobby now shows a fourth count button labelled "All" that starts a session with every eligible card for the chosen subject. Sessions with fewer than 5 eligible cards automatically switch to "All" so you can always review what needs practice, no matter how small the pool.
+
+### Changed
+- **Shared review eligibility pool** — the review badge on the home screen and the quiz session itself now use the same rule: never-reviewed cards, overdue scheduled cards, and cards marked as needing practice (`needsPractice: true` from a wrong answer). Low-mastery cards that aren't due no longer appear in review sessions.
+- **Failed cards flagged for practice** — answering a quiz question incorrectly sets `needsPractice: true`; answering correctly clears it. Existing cards default to `needsPractice: false` on first load.
+- **"Start quiz" requires at least one eligible card** — the Start button is disabled when there are zero eligible cards for the selected subject (previously required a minimum of 5).
+- **"No cards need review" message** — the lobby message when there's nothing to review now reflects the actual eligibility rule instead of the old 5-card minimum.
+
+### Fixed
+- **Empty loading block under "Memory Tips"** — when a card already has a mnemonic or mascot message, the skeleton loading animation no longer appears alongside it. The fallback content shows immediately instead.
+- **`mascot_message` now visible in quiz question view** — cards with a mascot message (but no mnemonic) now show that message in the self-report "wrong answer" memory panel, matching the feedback screen.
+- **Blank screen guard** — if the eligible pool changes between lobby render and Start click, the quiz now safely stays on the lobby instead of entering a blank question screen.
+
 ## [0.3.6.0] - 2026-04-14
 
 ### Fixed
