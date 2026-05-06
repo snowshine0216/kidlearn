@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, getReviewEligibleCards, getReviewEligibleCardsForSubject } from '../lib/quizLogic';
+import { buildQuestion, buildQuestions, selectPracticeCards, computeSessionScore, getReviewEligibleCards, getQuizCardsForSubject } from '../lib/quizLogic';
 import { getQuizHint } from '../lib/quizHintApi';
 import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
@@ -30,13 +30,13 @@ function hasMemoryFallback(card) {
 
 function QuizLobby({ t, deck, onStart, onClose }) {
   const [subject, setSubject] = useState('english');
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState('all');
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdownInterval, setCountdownInterval] = useState(30);
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
 
-  const subjectDeck = getReviewEligibleCardsForSubject(deck, subject);
+  const subjectDeck = getQuizCardsForSubject(deck, subject);
   const availableCount = subjectDeck.length;
   const canStart = availableCount > 0;
 
@@ -807,10 +807,9 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   async function handleStart({ subject, count, showCountdown, countdownInterval }) {
     setQuizSettings({ showCountdown, countdownInterval });
     const modes = subject === 'english' ? EN_MODES : ZH_MODES;
-    const now = Date.now();
-    const selected = selectQuizCards(deck, subject, count, now);
+    const selected = selectPracticeCards(deck, subject, count);
     const built = buildQuestions(selected, deck, modes);
-    if (built.length === 0) return; // guard: no eligible cards at start time
+    if (built.length === 0) return; // guard: no selected cards at start time
     setQuestions(built);
     setCurrentIdx(0);
     setResults([]);

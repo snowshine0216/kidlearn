@@ -4,9 +4,11 @@ import {
   isDueCard,
   getDueCards,
   isReviewEligibleCard,
+  getQuizCardsForSubject,
   getReviewEligibleCards,
   getReviewEligibleCardsForSubject,
   resolveQuizCount,
+  selectPracticeCards,
   selectQuizCards,
   buildQuestions,
   buildQuestion,
@@ -202,6 +204,17 @@ describe('review eligibility', () => {
     expect(result[0].id).toBe('zh');
   });
 
+  it('returns all non-disabled quiz cards for a subject regardless of review schedule', () => {
+    const future = makeCard({ id: 'future', mastery: 5, nextReviewAt: NOW + 10 * 86400000 });
+    const disabled = makeCard({ id: 'disabled', mastery: 5, nextReviewAt: NOW + 10 * 86400000, quizDisabled: true });
+    const chinese = makeZhCard({ id: 'zh', mastery: 5, nextReviewAt: NOW + 10 * 86400000 });
+
+    const result = getQuizCardsForSubject([future, disabled, chinese], 'english');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('future');
+  });
+
   it('resolves all count to the available count', () => {
     expect(resolveQuizCount('all', 7)).toBe(7);
   });
@@ -366,6 +379,30 @@ describe('selectQuizCards', () => {
     ];
     const result = selectQuizCards(deck, 'english', 5);
     expect(result).toHaveLength(0);
+  });
+});
+
+describe('selectPracticeCards', () => {
+  it('returns all selected-subject cards when count is all, even if scheduled in the future', () => {
+    const now = Date.now();
+    const deck = [
+      makeCard({ id: 'future-1', mastery: 5, nextReviewAt: now + 86400000 }),
+      makeCard({ id: 'future-2', mastery: 5, nextReviewAt: now + 86400000 }),
+      makeCard({ id: 'disabled', mastery: 5, nextReviewAt: now + 86400000, quizDisabled: true }),
+      makeZhCard({ id: 'zh-future', mastery: 5, nextReviewAt: now + 86400000 }),
+    ];
+
+    const result = selectPracticeCards(deck, 'english', 'all');
+
+    expect(result.map(c => c.id)).toEqual(expect.arrayContaining(['future-1', 'future-2']));
+    expect(result).toHaveLength(2);
+  });
+
+  it('caps numeric count to available quiz cards', () => {
+    const deck = makeDeck(3);
+    const result = selectPracticeCards(deck, 'english', 2);
+
+    expect(result).toHaveLength(2);
   });
 });
 

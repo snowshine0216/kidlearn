@@ -97,21 +97,39 @@ describe('QuizMode — Lobby', () => {
     });
   });
 
-  it('disables Start when the selected subject has no eligible cards', () => {
+  it('enables Start for future-scheduled cards because default quiz reviews all cards', async () => {
     const now = Date.now();
-    const futureDeck = makeDeck(6).map((card) => ({
-      ...card,
+    const futureDeck = Array.from({ length: 3 }, (_, i) => makeCard({
+      id: `zh-${i}`,
+      subject: 'chinese',
+      word: `word${i}`,
       mastery: 3,
       nextReviewAt: now + 7 * 86400000,
       needsPractice: false,
     }));
 
     render(<QuizMode {...DEFAULT_PROPS} deck={futureDeck} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+
+    expect(screen.getByText('All').closest('button').disabled).toBe(false);
+    expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(false);
+  });
+
+  it('selects All by default so normal quiz starts with every card in the subject', () => {
+    render(<QuizMode {...DEFAULT_PROPS} deck={makeDeck(8)} />);
+
+    expect(screen.getByText('All').closest('button').style.background).toBe('var(--color-primary)');
+  });
+
+  it('disables Start when the selected subject has no quizable cards', () => {
+    const disabledDeck = makeDeck(6).map((card) => ({ ...card, quizDisabled: true }));
+
+    render(<QuizMode {...DEFAULT_PROPS} deck={disabledDeck} />);
 
     expect(screen.getByRole('button', { name: /start/i }).disabled).toBe(true);
   });
 
-  it('All starts a quiz with every eligible card for the selected subject', async () => {
+  it('All starts a quiz with every card for the selected subject', async () => {
     const now = Date.now();
     const deck = [
       makeCard({ id: 'new-1', word: 'new1', mastery: null, nextReviewAt: null }),
@@ -125,7 +143,7 @@ describe('QuizMode — Lobby', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
 
     await waitFor(() => {
-      expect(screen.getByText(/question 1 of 3/i)).toBeTruthy();
+      expect(screen.getByText(/question 1 of 4/i)).toBeTruthy();
     }, { timeout: 3000 });
   });
 
@@ -252,6 +270,7 @@ describe('QuizMode — Retry Failed Cards', () => {
     render(<QuizMode {...DEFAULT_PROPS} deck={zhDeck} />);
     // Switch to Chinese subject (all reading mode = self-report, fully controllable)
     await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByText('5')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
 
     // Answer 5 questions then advance for each
@@ -581,6 +600,7 @@ describe('QuizMode — Back button', () => {
   async function startZhQuiz() {
     render(<QuizMode {...DEFAULT_PROPS} deck={zhDeck} />);
     await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByText('5')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy();
@@ -824,4 +844,3 @@ describe('QuizMode — Quiz-exclude toggle', () => {
     }, { timeout: 3000 });
   }, 30000);
 });
-

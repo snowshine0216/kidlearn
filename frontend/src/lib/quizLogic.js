@@ -15,6 +15,18 @@ export function shuffled(arr) {
   return a;
 }
 
+const orderNewestBySavedDay = (cards) => {
+  const dayBucket = c => Math.floor((c.savedAt || 0) / 86400000);
+  const grouped = cards.reduce((acc, c) => {
+    const key = dayBucket(c);
+    return { ...acc, [key]: [...(acc[key] ?? []), c] };
+  }, {});
+
+  return Object.keys(grouped)
+    .sort((a, b) => Number(b) - Number(a))
+    .flatMap(key => shuffled(grouped[key]));
+};
+
 // ─── isDueCard ────────────────────────────────────────────────────────────────
 
 /**
@@ -36,19 +48,12 @@ export function isDueCard(card, now = Date.now()) {
  */
 export function getDueCards(deck, now = Date.now()) {
   const due = deck.filter(c => isDueCard(c, now));
-  const dayBucket = c => Math.floor((c.savedAt || 0) / 86400000);
-  // day buckets are small integers (~19000 range); string key sort is safe with Number() conversion
-  const grouped = due.reduce((acc, c) => {
-    const key = dayBucket(c);
-    (acc[key] = acc[key] || []).push(c);
-    return acc;
-  }, {});
-  return Object.keys(grouped)
-    .sort((a, b) => Number(b) - Number(a))
-    .flatMap(key => shuffled(grouped[key]));
+  return orderNewestBySavedDay(due);
 }
 
 // ─── review eligibility ──────────────────────────────────────────────────────
+
+const isQuizEnabledCard = (card) => card.quizDisabled !== true;
 
 const isNeverReviewed = (card) =>
   card.mastery === null || card.mastery === undefined || card.nextReviewAt === null;
@@ -60,8 +65,16 @@ const isFailedPractice = (card) => card.needsPractice === true;
  * Combines never-reviewed cards, overdue scheduled cards, and failed cards.
  */
 export function isReviewEligibleCard(card, now = Date.now()) {
-  if (card.quizDisabled) return false;
+  if (!isQuizEnabledCard(card)) return false;
   return isFailedPractice(card) || isNeverReviewed(card) || isDueCard(card, now);
+}
+
+export function getQuizCards(deck) {
+  return orderNewestBySavedDay(deck.filter(isQuizEnabledCard));
+}
+
+export function getQuizCardsForSubject(deck, subject) {
+  return getQuizCards(deck).filter(c => c.subject === subject);
 }
 
 /**
@@ -70,15 +83,7 @@ export function isReviewEligibleCard(card, now = Date.now()) {
  */
 export function getReviewEligibleCards(deck, now = Date.now()) {
   const eligible = deck.filter(c => isReviewEligibleCard(c, now));
-  const dayBucket = c => Math.floor((c.savedAt || 0) / 86400000);
-  const grouped = {};
-  for (const c of eligible) {
-    const key = dayBucket(c);
-    (grouped[key] = grouped[key] ?? []).push(c);
-  }
-  return Object.keys(grouped)
-    .sort((a, b) => Number(b) - Number(a))
-    .flatMap(key => shuffled(grouped[key]));
+  return orderNewestBySavedDay(eligible);
 }
 
 export function getReviewEligibleCardsForSubject(deck, subject, now = Date.now()) {
@@ -91,6 +96,12 @@ export function resolveQuizCount(count, availableCount) {
   const numeric = Number(count);
   if (!Number.isFinite(numeric) || numeric <= 0) return 0;
   return Math.min(numeric, safeAvailable);
+}
+
+export function selectPracticeCards(deck, subject, count) {
+  const available = getQuizCardsForSubject(deck, subject);
+  const requested = resolveQuizCount(count, available.length);
+  return available.slice(0, requested);
 }
 
 // ─── selectQuizCards ─────────────────────────────────────────────────────────
