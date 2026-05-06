@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, shuffled, getDueCards } from '../lib/quizLogic';
+import { buildQuestion, buildQuestions, selectQuizCards, computeSessionScore, applyMasteryResult, shuffled, getDueCards, getReviewEligibleCards, getReviewEligibleCardsForSubject } from '../lib/quizLogic';
 import { getQuizHint } from '../lib/quizHintApi';
 import { speakCardFull, speak } from '../lib/speech';
 import { getTheme } from '../lib/colorThemes';
 
 const EN_MODES = ['pronunciation', 'fill-blank', 'word-meaning', 'chinese-meaning'];
 const ZH_MODES = ['reading', 'zh-fill-blank', 'zh-pinyin'];
-const COUNT_OPTIONS = [5, 10, 20];
+const COUNT_OPTIONS = [5, 10, 20, 'all'];
 const COUNTDOWN_OPTIONS = [
   { seconds: 30, label: '30s' },
   { seconds: 60, label: '1 min' },
@@ -25,8 +25,16 @@ function QuizLobby({ t, deck, onStart, onClose }) {
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
 
-  const subjectDeck = deck.filter(c => c.subject === subject);
-  const canStart = subjectDeck.length >= 5;
+  const subjectDeck = getReviewEligibleCardsForSubject(deck, subject);
+  const availableCount = subjectDeck.length;
+  const canStart = availableCount > 0;
+
+  useEffect(() => {
+    if (availableCount === 0) return;
+    if (count !== 'all' && count > availableCount) {
+      setCount('all');
+    }
+  }, [availableCount, count]);
 
   async function handleStart() {
     if (inFlightRef.current) return;
@@ -67,22 +75,25 @@ function QuizLobby({ t, deck, onStart, onClose }) {
           {t.quizCountLabel}
         </p>
         <div className="flex gap-3">
-          {COUNT_OPTIONS.map(n => {
-            const tooFew = subjectDeck.length < n;
+          {COUNT_OPTIONS.map(option => {
+            const isAll = option === 'all';
+            const disabled = isAll ? availableCount === 0 : availableCount < option;
+            const selected = count === option && !disabled;
+            const label = isAll ? t.quizCountAll : option;
             return (
               <button
-                key={n}
-                disabled={tooFew}
-                onClick={() => setCount(n)}
+                key={option}
+                disabled={disabled}
+                onClick={() => setCount(option)}
                 className="flex-1 py-3 rounded-xl font-bold text-xl transition-all"
                 style={{
-                  background: count === n && !tooFew ? 'var(--color-primary)' : 'var(--color-primary-light)',
-                  color: count === n && !tooFew ? 'white' : tooFew ? '#bbb' : 'var(--color-primary-dark)',
-                  cursor: tooFew ? 'not-allowed' : 'pointer',
-                  opacity: tooFew ? 0.5 : 1,
+                  background: selected ? 'var(--color-primary)' : 'var(--color-primary-light)',
+                  color: selected ? 'white' : disabled ? '#bbb' : 'var(--color-primary-dark)',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.5 : 1,
                 }}
               >
-                {n}
+                {label}
               </button>
             );
           })}
@@ -724,7 +735,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   useEffect(() => {
     if (!dueOnly) return;
     const now = Date.now();
-    const dueCards = getDueCards(deck, now).filter(c => !c.quizDisabled);
+    const dueCards = getReviewEligibleCards(deck, now).filter(c => !c.quizDisabled);
     if (dueCards.length === 0) return; // no due cards → fall back to lobby
 
     // Single-pass map: preserves newest-first day ordering AND interleaves EN/ZH naturally.

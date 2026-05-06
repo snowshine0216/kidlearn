@@ -69,9 +69,10 @@ const STRINGS = {
 
     // Quiz Mode
     startQuiz: '🎯 开始测验',
-    quizNeedCards: '需要至少 5 张卡片才能开始测验',
+    quizNeedCards: '没有需要复习的卡片',
     quizSubjectLabel: '测验科目',
     quizCountLabel: '题目数量',
+    quizCountAll: '全部',
     quizModeLabels: { pronunciation: '跟读发音', fillBlank: '选择填空', wordMeaning: '词义配对', reading: '认字朗读', chineseMeaning: '听中选英', zhFillBlank: '中文填空', zhPinyin: '选择拼音' },
     quizStart: '开始 🚀',
     quizStartLoading: '准备中...',
@@ -172,9 +173,10 @@ const STRINGS = {
 
     // Quiz Mode
     startQuiz: '🎯 Start Quiz',
-    quizNeedCards: 'Need at least 5 cards to start a quiz',
+    quizNeedCards: 'No cards need review right now',
     quizSubjectLabel: 'Subject',
     quizCountLabel: 'Questions',
+    quizCountAll: 'All',
     quizModeLabels: { pronunciation: 'Pronunciation', fillBlank: 'Fill the Blank', wordMeaning: 'Word → Meaning', reading: 'Reading', chineseMeaning: 'Listen → Choose', zhFillBlank: 'Fill the Blank', zhPinyin: 'Choose Pinyin' },
     quizStart: 'Start 🚀',
     quizStartLoading: 'Getting ready...',

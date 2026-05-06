@@ -99,3 +99,15 @@ describe('saveLang', () => {
     spy.mockRestore();
   });
 });
+
+describe('quiz count all label', () => {
+  it('zh: quizCountAll exists', () => {
+    const t = getStrings('zh');
+    expect(t.quizCountAll).toBe('全部');
+  });
+
+  it('en: quizCountAll exists', () => {
+    const t = getStrings('en');
+    expect(t.quizCountAll).toBe('All');
+  });
+});
