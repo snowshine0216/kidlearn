@@ -2,6 +2,14 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.10.0] - 2026-05-09
+
+### Added
+- **Local SQLite storage** — `npm run dev` now persists flashcard decks and streak data in a local SQLite database (`data/starcards.sqlite`) instead of browser `localStorage`. The Vite dev server serves `/api/storage/*` routes backed by `better-sqlite3`. Vercel production has no storage route, so the frontend health-checks and automatically falls back to browser `localStorage` with a 500ms timeout.
+- **One-time browser-to-SQLite migration** — on first local startup, any cards in browser `localStorage` are imported into SQLite with content-fingerprint deduplication (`subject + word + chinese + pinyin`). The import is idempotent and tracked per-browser with `starcards_sqlite_import_attempted_v1`.
+- **Storage adapter boundary** — a clean adapter interface (`load`, `addCard`, `deleteCard`, `patchCard`, `updateCardMastery`, `reportCard`, `touchStreak`) decouples `useDeck` from the storage backend. SQLite adapter is selected when health check succeeds; localStorage adapter is the fallback.
+- **Multi-tab convergence** — localStorage adapter listens to `storage` events for cross-tab sync; SQLite adapter refreshes state on window focus.
+
 ## [0.3.9.0] - 2026-05-09
 
 ### Added
