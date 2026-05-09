@@ -50,7 +50,7 @@ export function useDeck(showToast) {
       adapterRef.current.refresh().then((state) => {
         setDeck(state.deck);
         setStreak(state.streak);
-      });
+      }).catch(() => {});
     };
 
     const onFocus = () => {

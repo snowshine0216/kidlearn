@@ -22,6 +22,8 @@ const parseRawCards = (raw) => {
   }
 };
 
+// The import flag is set only on success, so if importCards throws the flag
+// is never written and the migration retries on the next page load — intentional.
 const importOldBrowserDeck = async ({ client, storage }) => {
   if (storage.getItem(SQLITE_IMPORT_ATTEMPTED_KEY) === 'true') return;
 
