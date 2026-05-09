@@ -10,6 +10,11 @@ describe('buildSystemPrompt', () => {
     // Must not tell the AI to use English as the output language
     expect(buildSystemPrompt()).not.toMatch(/write.*in English|respond.*in English|all.*in English/i);
   });
+
+  it('redirects inappropriate words to a child-safe rainbow hint', () => {
+    expect(buildSystemPrompt()).toMatch(/inappropriate/i);
+    expect(buildSystemPrompt()).toMatch(/rainbow/i);
+  });
 });
 
 describe('buildUserPrompt', () => {

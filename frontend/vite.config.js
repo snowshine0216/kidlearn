@@ -1,5 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { buildSystemPrompt as buildGenerateSystemPrompt } from '../api/generate.js';
+import quizHintHandler from '../api/quiz-hint.js';
 
 export default defineConfig(({ mode }) => {
   // Load ALL env vars from .env.local (including non-VITE_ prefixed ones)
@@ -17,7 +19,7 @@ export default defineConfig(({ mode }) => {
 });
 
 // ─── Dev API middleware ───────────────────────────────────────────────────────
-// Intercepts /api/generate and /api/speak during `npm run dev`.
+// Intercepts /api/generate, /api/speak, and /api/quiz-hint during `npm run dev`.
 // In production (Vercel) the real serverless functions in /api/*.js handle these.
 function devApiPlugin(env) {
   const MINIMAX_TEXT_URL = 'https://api.minimax.chat/v1/text/chatcompletion_v2';
@@ -40,6 +42,37 @@ function devApiPlugin(env) {
     res.end(JSON.stringify(body));
   }
 
+  function vercelResponse(res) {
+    const adapter = {
+      setHeader: (name, value) => res.setHeader(name, value),
+      status: (statusCode) => {
+        res.statusCode = statusCode;
+        return adapter;
+      },
+      json: (body) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(body));
+        return adapter;
+      },
+      end: (body) => res.end(body),
+    };
+    return adapter;
+  }
+
+  async function withMinimaxApiKey(effect) {
+    const previousApiKey = process.env.MINIMAX_API_KEY;
+    if (env.MINIMAX_API_KEY) process.env.MINIMAX_API_KEY = env.MINIMAX_API_KEY;
+    try {
+      return await effect();
+    } finally {
+      if (previousApiKey === undefined) {
+        delete process.env.MINIMAX_API_KEY;
+      } else {
+        process.env.MINIMAX_API_KEY = previousApiKey;
+      }
+    }
+  }
+
   return {
     name: 'dev-api',
     apply: 'serve',
@@ -55,10 +88,7 @@ function devApiPlugin(env) {
         const { word, subject } = await readBody(req);
         if (!word || !subject) return json(res, 400, { error: 'word and subject are required' });
 
-        const systemPrompt = `You are a friendly, creative teacher helping a 6.5-year-old child learn vocabulary.
-Generate flashcard content that is simple, visually imaginative, encouraging, and bilingual (English + Chinese).
-The word is in [WORD_START]...[WORD_END] tags. Keep mnemonic to 1–2 sentences.
-Always respond with valid JSON only. No markdown, no preamble.`;
+        const systemPrompt = buildGenerateSystemPrompt();
 
         const userPrompt = `Generate a flashcard for: [WORD_START]${word}[WORD_END]
 Subject: ${subject}
@@ -166,6 +196,19 @@ color_theme: purple|coral|green|amber|blue|pink. Use "coral" for Chinese, "green
           console.error('[dev-api] speak error:', e);
           return json(res, 500, { error: e.message });
         }
+      });
+
+      // POST /api/quiz-hint -> Vercel-compatible quiz hint handler
+      server.middlewares.use('/api/quiz-hint', async (req, res) => {
+        const body = req.method === 'POST' ? await readBody(req) : {};
+        const adaptedReq = {
+          method: req.method,
+          headers: req.headers,
+          socket: req.socket,
+          body,
+        };
+
+        return withMinimaxApiKey(() => quizHintHandler(adaptedReq, vercelResponse(res)));
       });
     },
   };
