@@ -8,3 +8,7 @@ dist/
 .gstack/
 .claude/launch.json
 .claude/worktrees/
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

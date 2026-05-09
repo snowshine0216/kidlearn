@@ -36,7 +36,7 @@ function jsonResponse() {
 }
 
 describe('vite dev API plugin', () => {
-  it('registers /api/quiz-hint during local dev', () => {
+  it('registers local dev API routes', () => {
     const use = vi.fn();
     const config = createConfig({ mode: 'test' });
     const devApiPlugin = config.plugins.find((plugin) => plugin?.name === 'dev-api');
@@ -45,6 +45,7 @@ describe('vite dev API plugin', () => {
 
     const registeredPaths = use.mock.calls.map(([path]) => path);
     expect(registeredPaths).toContain('/api/quiz-hint');
+    expect(registeredPaths).toContain('/api/storage');
   });
 
   it('keeps the local /api/generate prompt child-safe', async () => {

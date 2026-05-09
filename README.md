@@ -43,6 +43,14 @@ VITE_MINIMAX_API_KEY_HINT=true
 Set a monthly budget in your MiniMax account under **Billing → Spend Limit**.
 Each card costs roughly ¥0.01–0.02 — a family app will stay well under ¥5/month.
 
+### Local Storage Mode
+
+During local development, StarCards uses a local SQLite database when the Vite dev storage API is available. The database file is created at `data/starcards.sqlite` and is ignored by git.
+
+On first local startup, the app imports any existing browser `starcards_deck` data into SQLite. Duplicate cards are skipped by normalized content fingerprint (`subject + word + chinese + pinyin`). The old browser deck remains in `localStorage` so Vercel deployments can keep using browser storage.
+
+Vercel is stateless and does not persist local SQLite files. In production, `/api/storage/health` is unavailable, so the app falls back to browser `localStorage`.
+
 ---
 
 ## Running Tests

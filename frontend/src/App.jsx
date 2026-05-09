@@ -30,7 +30,7 @@ export default function App() {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const { deck, streak, addCard, deleteCard, touchStreak, updateCardMastery, patchCard } = useDeck(showToast);
+  const { deck, streak, addCard, deleteCard, touchStreak, updateCardMastery, patchCard, storageReady } = useDeck(showToast);
 
   const dueCount = getReviewEligibleCards(deck).length;
 
@@ -40,8 +40,8 @@ export default function App() {
     setLang(next);
   }
 
-  function handleCardGenerated(card) {
-    const savedCard = addCard(card);
+  async function handleCardGenerated(card) {
+    const savedCard = await addCard(card);
     if (savedCard) {
       setCurrentCard(savedCard);
       setCurrentSubject(savedCard.subject ?? card.subject);
@@ -100,6 +100,7 @@ export default function App() {
             recentCards={deck}
             onLoadRecent={handleLoadRecent}
             onDeleteCard={handleDeleteCard}
+            storageReady={storageReady}
           />
 
           <div className="flex flex-col gap-4 flex-1 min-w-0 pb-24 md:pb-0">
