@@ -2,6 +2,13 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.8.0] - 2026-05-09
+
+### Changed
+- **Quiz lobby orders review-eligible cards first** — when a parent picks fewer cards than the full deck, the session now starts with the cards that need practice most (failed, never-reviewed, or overdue), instead of an arbitrary slice. Non-eligible cards fill the remainder so parents can always drill the full deck on low-due days.
+- **In-quiz skip records a wrong answer** — the `跳过测验` button on the question screen now marks the current card wrong and advances, so the card resurfaces tomorrow via spaced repetition. It no longer permanently excludes the card from quiz sessions.
+- **Skip button removed from the feedback screen** — the skip shortcut only appears on the unanswered question, not after the child has already responded.
+
 ## [0.3.7.0] - 2026-05-06
 
 ### Added

@@ -383,26 +383,80 @@ describe('selectQuizCards', () => {
 });
 
 describe('selectPracticeCards', () => {
-  it('returns all selected-subject cards when count is all, even if scheduled in the future', () => {
-    const now = Date.now();
+  const NOW = 1_700_000_000_000;
+
+  it('returns review-eligible cards before non-eligible cards', () => {
     const deck = [
-      makeCard({ id: 'future-1', mastery: 5, nextReviewAt: now + 86400000 }),
-      makeCard({ id: 'future-2', mastery: 5, nextReviewAt: now + 86400000 }),
-      makeCard({ id: 'disabled', mastery: 5, nextReviewAt: now + 86400000, quizDisabled: true }),
-      makeZhCard({ id: 'zh-future', mastery: 5, nextReviewAt: now + 86400000 }),
+      makeCard({ id: 'future-1', mastery: 5, nextReviewAt: NOW + 86400000, needsPractice: false }),
+      makeCard({ id: 'due-1',    mastery: 3, nextReviewAt: NOW - 1000 }),
+      makeCard({ id: 'future-2', mastery: 5, nextReviewAt: NOW + 86400000, needsPractice: false }),
+      makeCard({ id: 'new-1',    mastery: null, nextReviewAt: null }),
     ];
 
-    const result = selectPracticeCards(deck, 'english', 'all');
+    const result = selectPracticeCards(deck, 'english', 'all', NOW);
 
-    expect(result.map(c => c.id)).toEqual(expect.arrayContaining(['future-1', 'future-2']));
-    expect(result).toHaveLength(2);
+    const ids = result.map(c => c.id);
+    const eligibleIds = ids.slice(0, 2).sort();
+    const nonEligibleIds = ids.slice(2).sort();
+    expect(eligibleIds).toEqual(['due-1', 'new-1']);
+    expect(nonEligibleIds).toEqual(['future-1', 'future-2']);
   });
 
-  it('caps numeric count to available quiz cards', () => {
-    const deck = makeDeck(3);
-    const result = selectPracticeCards(deck, 'english', 2);
+  it('preserves selectQuizCards priority order within the eligible segment (failed first)', () => {
+    const deck = [
+      makeCard({ id: 'due',    mastery: 3, nextReviewAt: NOW - 1000 }),
+      makeCard({ id: 'failed', mastery: 3, nextReviewAt: NOW + 86400000, needsPractice: true }),
+      makeCard({ id: 'new',    mastery: null, nextReviewAt: null }),
+    ];
+
+    const result = selectPracticeCards(deck, 'english', 'all', NOW);
+
+    expect(result[0].id).toBe('failed');
+    expect(result.slice(1).map(c => c.id).sort()).toEqual(['due', 'new']);
+  });
+
+  it('with 3 eligible and 10 non-eligible, count=5 returns all 3 eligible plus 2 non-eligible', () => {
+    const eligible = [
+      makeCard({ id: 'e-1', mastery: null, nextReviewAt: null }),
+      makeCard({ id: 'e-2', mastery: null, nextReviewAt: null }),
+      makeCard({ id: 'e-3', mastery: null, nextReviewAt: null }),
+    ];
+    const nonEligible = Array.from({ length: 10 }, (_, i) => makeCard({
+      id: `n-${i}`, mastery: 5, nextReviewAt: NOW + 86400000, needsPractice: false,
+    }));
+
+    const result = selectPracticeCards([...nonEligible, ...eligible], 'english', 5, NOW);
+
+    expect(result).toHaveLength(5);
+    const headIds = new Set(result.slice(0, 3).map(c => c.id));
+    expect(headIds).toEqual(new Set(['e-1', 'e-2', 'e-3']));
+    const tailIds = result.slice(3).map(c => c.id);
+    expect(tailIds.every(id => id.startsWith('n-'))).toBe(true);
+  });
+
+  it('count="all" returns every enabled card with eligibles at the head', () => {
+    const deck = [
+      makeCard({ id: 'future', mastery: 5, nextReviewAt: NOW + 86400000, needsPractice: false }),
+      makeCard({ id: 'due',    mastery: 3, nextReviewAt: NOW - 1000 }),
+    ];
+
+    const result = selectPracticeCards(deck, 'english', 'all', NOW);
 
     expect(result).toHaveLength(2);
+    expect(result[0].id).toBe('due');
+    expect(result[1].id).toBe('future');
+  });
+
+  it('excludes quizDisabled cards regardless of eligibility', () => {
+    const deck = [
+      makeCard({ id: 'enabled-due',  mastery: 3, nextReviewAt: NOW - 1000 }),
+      makeCard({ id: 'disabled-due', mastery: 3, nextReviewAt: NOW - 1000, quizDisabled: true }),
+      makeCard({ id: 'disabled-fut', mastery: 5, nextReviewAt: NOW + 86400000, quizDisabled: true }),
+    ];
+
+    const result = selectPracticeCards(deck, 'english', 'all', NOW);
+
+    expect(result.map(c => c.id)).toEqual(['enabled-due']);
   });
 });
 

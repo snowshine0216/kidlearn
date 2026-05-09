@@ -35,6 +35,7 @@ function QuizLobby({ t, deck, onStart, onClose }) {
   const [countdownInterval, setCountdownInterval] = useState(30);
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
+  const nowRef = useRef(Date.now());
 
   const subjectDeck = getQuizCardsForSubject(deck, subject);
   const availableCount = subjectDeck.length;
@@ -51,7 +52,7 @@ function QuizLobby({ t, deck, onStart, onClose }) {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setLoading(true);
-    await onStart({ subject, count, showCountdown, countdownInterval });
+    await onStart({ subject, count, showCountdown, countdownInterval, now: nowRef.current });
     inFlightRef.current = false;
     setLoading(false);
   }
@@ -182,7 +183,7 @@ function QuizProgress({ current, total, t }) {
 
 // ─── QuizQuestion ─────────────────────────────────────────────────────────────
 
-function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, onCorrectSelfReport, isLast, onBack, onToggleQuizDisabled, isQuizDisabled }) {
+function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, onCorrectSelfReport, isLast, onBack, onSkipAndFail }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
   const memoryHint = card.quizHints?.[type] ?? null;
   const hasMemoryHint = hasHintContent(memoryHint);
@@ -515,13 +516,13 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
             {t.quizBack}
           </button>
         ) : <span />}
-        {onToggleQuizDisabled && (
+        {onSkipAndFail && selfReportPending === null && (
           <button
-            onClick={onToggleQuizDisabled}
+            onClick={onSkipAndFail}
             className="text-sm px-3 py-2 rounded-xl"
             style={{ color: 'var(--color-muted)' }}
           >
-            {isQuizDisabled ? t.quizEnable : t.quizDisable}
+            {t.quizSkipFail}
           </button>
         )}
       </div>
@@ -556,7 +557,7 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
 
 // ─── QuizFeedback ─────────────────────────────────────────────────────────────
 
-function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast, onBack, onToggleQuizDisabled, isQuizDisabled }) {
+function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast, onBack }) {
   const { card } = question;
   const [showMemory, setShowMemory] = useState(!correct);
   const hint = card.quizHints?.[question.type] ?? null;
@@ -627,9 +628,8 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
         </>
       )}
 
-      {/* Back + exclude row */}
-      <div className="flex justify-between items-center mt-2">
-        {onBack ? (
+      {onBack && (
+        <div className="flex justify-start items-center mt-2">
           <button
             onClick={onBack}
             className="text-sm font-semibold px-3 py-2 rounded-xl"
@@ -637,17 +637,8 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
           >
             {t.quizBack}
           </button>
-        ) : <span />}
-        {onToggleQuizDisabled && (
-          <button
-            onClick={onToggleQuizDisabled}
-            className="text-sm px-3 py-2 rounded-xl"
-            style={{ color: 'var(--color-muted)' }}
-          >
-            {isQuizDisabled ? t.quizEnable : t.quizDisable}
-          </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <button
         onClick={onNext}
@@ -744,6 +735,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   const [hintLoadingSet, setHintLoadingSet] = useState(new Set());
   const [quizSettings, setQuizSettings] = useState({ showCountdown: false, countdownInterval: 30 });
   const mountedRef = useRef(true);
+  const skipInFlightRef = useRef(false);
 
   useEffect(() => {
     return () => { mountedRef.current = false; };
@@ -804,10 +796,10 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   const currentQuestion = questions[currentIdx] ?? null;
   const isLast = currentIdx === questions.length - 1;
 
-  async function handleStart({ subject, count, showCountdown, countdownInterval }) {
+  async function handleStart({ subject, count, showCountdown, countdownInterval, now }) {
     setQuizSettings({ showCountdown, countdownInterval });
     const modes = subject === 'english' ? EN_MODES : ZH_MODES;
-    const selected = selectPracticeCards(deck, subject, count);
+    const selected = selectPracticeCards(deck, subject, count, now);
     const built = buildQuestions(selected, deck, modes);
     if (built.length === 0) return; // guard: no selected cards at start time
     setQuestions(built);
@@ -888,17 +880,22 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
     setPhase('question');
   }
 
-  function handleExcludeCard() {
+  function handleSkipAndFail() {
+    // Guard against rapid double-click: two browser events can fire before React re-renders.
+    if (skipInFlightRef.current) return;
+    skipInFlightRef.current = true;
     const q = questions[currentIdx];
-    onPatchCard(q.card.id, { quizDisabled: true });
-    if (phase === 'question') {
-      if (isLast) {
-        setPhase('summary');
-      } else {
-        setCurrentIdx(i => i + 1);
-        setPhase('question');
-      }
+    setHistory(prev => [...prev, captureSnapshot(q)]);
+    onUpdateMastery(q.card.id, false);
+    setResults(prev => [...prev, { cardId: q.card.id, card: q.card, type: q.type, correct: false }]);
+    if (isLast) {
+      setPhase('summary');
+    } else {
+      setCurrentIdx(i => i + 1);
+      setPhase('question');
     }
+    // Reset after React's batch commits (next event-loop tick).
+    setTimeout(() => { skipInFlightRef.current = false; }, 0);
   }
 
   function handleAnswer(correct, _chosenId) {
@@ -1047,8 +1044,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
               onCorrectSelfReport={handleCorrectSelfReport}
               isLast={isLast}
               onBack={history.length > 0 ? handleBack : null}
-              onToggleQuizDisabled={handleExcludeCard}
-              isQuizDisabled={deck.find(c => c.id === currentQuestion.card.id)?.quizDisabled ?? false}
+              onSkipAndFail={handleSkipAndFail}
             />
           </>
         )}
@@ -1064,8 +1060,6 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
             onNext={handleNext}
             isLast={isLast}
             onBack={history.length > 0 ? handleBack : null}
-            onToggleQuizDisabled={handleExcludeCard}
-            isQuizDisabled={deck.find(c => c.id === currentQuestion.card.id)?.quizDisabled ?? false}
           />
         )}
 
