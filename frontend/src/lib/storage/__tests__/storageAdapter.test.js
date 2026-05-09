@@ -70,6 +70,19 @@ describe('createStorageAdapter', () => {
     expect(storage.setItem).toHaveBeenCalledWith(SQLITE_IMPORT_ATTEMPTED_KEY, 'true');
   });
 
+  it('does not set import flag when localStorage deck is corrupted JSON', async () => {
+    const storage = makeStorage({ [DECK_KEY]: '{corrupted json!!!' });
+    const fetchImpl = vi.fn(async (url) => {
+      if (url === '/api/storage/health') return jsonResponse({ available: true });
+      throw new Error(`unexpected url ${url}`);
+    });
+
+    await createStorageAdapter({ fetchImpl, storage });
+
+    const setItemCalls = storage.setItem.mock.calls.map(([key]) => key);
+    expect(setItemCalls).not.toContain(SQLITE_IMPORT_ATTEMPTED_KEY);
+  });
+
   it('does not import when this browser already attempted import', async () => {
     const storage = makeStorage({
       [DECK_KEY]: JSON.stringify([{ id: 'old-1', word: 'cat', subject: 'english' }]),

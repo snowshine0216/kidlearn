@@ -10,6 +10,12 @@ All notable changes to StarCards will be documented in this file.
 - **Storage adapter boundary** — a clean adapter interface (`load`, `addCard`, `deleteCard`, `patchCard`, `updateCardMastery`, `reportCard`, `touchStreak`) decouples `useDeck` from the storage backend. SQLite adapter is selected when health check succeeds; localStorage adapter is the fallback.
 - **Multi-tab convergence** — localStorage adapter listens to `storage` events for cross-tab sync; SQLite adapter refreshes state on window focus.
 
+### Fixed
+- **Migration flag not set on corrupted localStorage data** — the one-time import no longer permanently marks the migration as complete when the raw localStorage deck is truthy but fails to parse (corrupted write); the flag is now only set on provably empty decks or successful imports, allowing retry on the next session.
+- **Generate button enabled during storage health-check** — the generate button is now disabled while the storage adapter is resolving (≤500ms), preventing AI-generated cards from being silently dropped when `addCard` returns `false` during the startup window.
+- **Non-atomic card updates** — `updateOneCard` in the SQLite repository is now wrapped in a `db.transaction()`, preventing concurrent mastery/report calls from interleaving and losing each other's writes.
+- **Malformed request body silently accepted** — `POST /api/storage/cards` and other write routes now return HTTP 400 (instead of inserting an empty card) when the request body contains invalid JSON.
+
 ## [0.3.9.0] - 2026-05-09
 
 ### Added

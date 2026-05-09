@@ -27,9 +27,20 @@ const parseRawCards = (raw) => {
 const importOldBrowserDeck = async ({ client, storage }) => {
   if (storage.getItem(SQLITE_IMPORT_ATTEMPTED_KEY) === 'true') return;
 
-  const cards = parseRawCards(storage.getItem(DECK_KEY));
+  const raw = storage.getItem(DECK_KEY);
+  const cards = parseRawCards(raw);
   if (cards.length === 0) {
-    storage.setItem(SQLITE_IMPORT_ATTEMPTED_KEY, 'true');
+    // Only mark as migrated when the deck is provably empty (no data, or a valid
+    // empty JSON array). If localStorage has data that failed to parse (corrupted
+    // write, disk-full truncation), skip — allow retry next session to avoid
+    // permanently orphaning the user's cards.
+    if (!raw) {
+      storage.setItem(SQLITE_IMPORT_ATTEMPTED_KEY, 'true');
+    } else {
+      try {
+        if (Array.isArray(JSON.parse(raw))) storage.setItem(SQLITE_IMPORT_ATTEMPTED_KEY, 'true');
+      } catch { /* corrupted JSON — do not mark as attempted */ }
+    }
     return;
   }
 

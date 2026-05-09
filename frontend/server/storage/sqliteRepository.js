@@ -230,13 +230,13 @@ export function createSqliteRepository({
     return load();
   };
 
-  const updateOneCard = (id, updater) => {
+  const updateOneCard = (id, updater) => db.transaction(() => {
     const current = listDeck().find((card) => card.id === id);
     if (!current) return load();
     const nextCard = updater(current);
     replaceCard.run(cardToParams(nextCard, now()));
     return load();
-  };
+  })();
 
   const patchCard = (id, fields) => updateOneCard(id, (card) => (
     nextDeckWithPatchedCard([card], id, fields)[0]

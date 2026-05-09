@@ -4,10 +4,13 @@ const readBody = (req) => new Promise((resolve, reject) => {
   let data = '';
   req.on('data', (chunk) => { data += chunk; });
   req.on('end', () => {
+    if (!data) { resolve({}); return; }
     try {
-      resolve(data ? JSON.parse(data) : {});
+      resolve(JSON.parse(data));
     } catch {
-      resolve({});
+      const err = new Error('Invalid JSON in request body');
+      err.statusCode = 400;
+      reject(err);
     }
   });
   req.on('error', reject);
@@ -86,7 +89,7 @@ export function createStorageRouter({ repoFactory = createSqliteRepository } = {
 
       return next();
     } catch (error) {
-      return sendJson(res, 500, { error: error.message });
+      return sendJson(res, error.statusCode ?? 500, { error: error.message });
     }
   };
 }

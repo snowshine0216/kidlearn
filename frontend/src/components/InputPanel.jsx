@@ -9,7 +9,7 @@ const SUBJECT_STYLES = {
   math:    { activeBg: 'var(--color-accent-light)', activeColor: '#085041' },
 };
 
-export default function InputPanel({ t, onCardGenerated, onLoading, recentCards, onLoadRecent, onDeleteCard }) {
+export default function InputPanel({ t, onCardGenerated, onLoading, recentCards, onLoadRecent, onDeleteCard, storageReady = true }) {
   const [subject, setSubject] = useState('english'); // default: English (user decision)
   const [word, setWord] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -114,7 +114,7 @@ export default function InputPanel({ t, onCardGenerated, onLoading, recentCards,
         {/* Generate button */}
         <button
           onClick={handleGenerate}
-          disabled={!word.trim() || isLoading}
+          disabled={!word.trim() || isLoading || !storageReady}
           className="w-full py-4 rounded-2xl font-bold text-white text-base transition-opacity disabled:opacity-50"
           style={{
             background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)',

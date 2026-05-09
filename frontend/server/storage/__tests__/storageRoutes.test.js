@@ -12,6 +12,15 @@ const makeReq = ({ method = 'GET', url = '/health', body } = {}) => ({
   },
 });
 
+const makeRawReq = ({ method = 'POST', url = '/cards', rawBody = '' } = {}) => ({
+  method,
+  url,
+  on(event, handler) {
+    if (event === 'data' && rawBody) handler(Buffer.from(rawBody));
+    if (event === 'end') handler();
+  },
+});
+
 const makeRes = () => {
   const headers = {};
   return {
@@ -81,6 +90,78 @@ describe('createStorageRouter', () => {
 
     expect(res.statusCode).toBe(200);
     expect(repo.patchCard).toHaveBeenCalledWith('card-1', { quizDisabled: true });
+  });
+
+  it('adds a card via POST /cards', async () => {
+    const repo = makeRepo();
+    const router = createStorageRouter({ repoFactory: () => repo });
+    const card = { word: 'dog', subject: 'english' };
+
+    const { res } = await call(router, makeReq({ method: 'POST', url: '/cards', body: { card } }));
+
+    expect(res.statusCode).toBe(200);
+    expect(repo.addCard).toHaveBeenCalledWith(card);
+  });
+
+  it('deletes a card via DELETE /cards/:id', async () => {
+    const repo = makeRepo();
+    const router = createStorageRouter({ repoFactory: () => repo });
+
+    const { res } = await call(router, makeReq({ method: 'DELETE', url: '/cards/card-1' }));
+
+    expect(res.statusCode).toBe(200);
+    expect(repo.deleteCard).toHaveBeenCalledWith('card-1');
+  });
+
+  it('updates mastery via POST /cards/:id/mastery', async () => {
+    const repo = makeRepo();
+    const router = createStorageRouter({ repoFactory: () => repo });
+
+    const { res } = await call(router, makeReq({ method: 'POST', url: '/cards/card-1/mastery', body: { correct: true } }));
+
+    expect(res.statusCode).toBe(200);
+    expect(repo.updateCardMastery).toHaveBeenCalledWith('card-1', true);
+  });
+
+  it('reports a card via POST /cards/:id/report', async () => {
+    const repo = makeRepo();
+    const router = createStorageRouter({ repoFactory: () => repo });
+
+    const { res } = await call(router, makeReq({ method: 'POST', url: '/cards/card-1/report', body: { knewIt: true } }));
+
+    expect(res.statusCode).toBe(200);
+    expect(repo.reportCard).toHaveBeenCalledWith('card-1', true);
+  });
+
+  it('touches streak via POST /streak/touch', async () => {
+    const repo = makeRepo();
+    const router = createStorageRouter({ repoFactory: () => repo });
+
+    const { res } = await call(router, makeReq({ method: 'POST', url: '/streak/touch' }));
+
+    expect(res.statusCode).toBe(200);
+    expect(repo.touchStreak).toHaveBeenCalled();
+  });
+
+  it('returns 500 when repo throws', async () => {
+    const repo = makeRepo();
+    repo.load.mockImplementation(() => { throw new Error('db error'); });
+    const router = createStorageRouter({ repoFactory: () => repo });
+
+    const { res } = await call(router, makeReq({ method: 'GET', url: '/state' }));
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ error: 'db error' });
+  });
+
+  it('returns 400 when POST body is malformed JSON', async () => {
+    const repo = makeRepo();
+    const router = createStorageRouter({ repoFactory: () => repo });
+
+    const { res } = await call(router, makeRawReq({ method: 'POST', url: '/cards', rawBody: '{not valid json' }));
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/Invalid JSON/);
   });
 
   it('passes unknown routes to next middleware', async () => {
