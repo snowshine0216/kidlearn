@@ -2,6 +2,16 @@
 
 All notable changes to StarCards will be documented in this file.
 
+## [0.3.9.0] - 2026-05-09
+
+### Added
+- **Local quiz-hint API support** — `npm run dev` now serves `/api/quiz-hint`, so local quiz memory tips use the same serverless handler as production instead of falling through to a missing endpoint.
+- **Project agent guidance** — repository-level agent instructions now document the local tooling and development expectations for future coding sessions.
+
+### Fixed
+- **Old skipped cards return to review** — cards hidden by the previous in-quiz skip behavior are migrated back into the quiz pool with `needsPractice: true`, while newly-disabled v2 cards remain respected.
+- **Child-safe AI fallback restored** — flashcard generation and quiz hints once again redirect inappropriate child inputs toward safe rainbow/oops content, with regression tests covering production and local dev prompts.
+
 ## [0.3.8.0] - 2026-05-09
 
 ### Changed

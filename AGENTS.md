@@ -4,7 +4,7 @@
 
 - `gh` is at `/opt/homebrew/bin/gh`
 - `bun` is at `/Users/snow/.bun/bin/bun`
-- `npm` is at `~/.nvm/versions/node/v24.14.1/bin/npm` — must source NVM before any npm commands 
+- `npm` is at `~/.nvm/versions/node/v24.14.1/bin/npm` — must source NVM before any npm commands
 
 ---
 

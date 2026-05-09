@@ -16,10 +16,6 @@
 
 ## Quiz / Spaced Repetition
 
-**Title:** Migrate `quizDisabled: true` cards set by the old skip button
-**Priority:** P1
-**Description:** The old skip button (removed in v0.3.8.0) set `quizDisabled: true` on cards, permanently hiding them. Users who pressed it now have hidden cards that never resurface. Implement the migration plan in `docs/superpowers/specs/2026-05-09-quizdisabled-localstorage-migration-design.md`: bump `schemaVersion` to 2 in `useDeck.js`, add a `migrateCard` case that clears `quizDisabled` on all cards (the new skip-as-fail path never sets it, so any card with `quizDisabled: true` was set by the old bug). Ship before telling users to update.
-
 ## Code Quality
 
 **Title:** Fix `useDeck.deleteCard` stale closure
@@ -43,6 +39,9 @@
 **Description:** localStorage is single-device. Move to cloud persistence (e.g., Vercel KV, Supabase) for cross-device access. Required for families with multiple devices.
 
 ## Completed
+
+**Title:** Migrate `quizDisabled: true` cards set by the old skip button
+**Completed:** v0.3.9.0 (2026-05-09)
 
 **Title:** Bigger hint text + retry missed cards in quiz
 **Completed:** v0.3.0.0 (2026-04-06)
