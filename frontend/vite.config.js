@@ -78,6 +78,12 @@ function devApiPlugin(env) {
     apply: 'serve',
     configureServer(server) {
 
+      server.middlewares.use('/api/storage', (_req, res) => {
+        res.statusCode = 503;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ available: false, backend: 'sqlite' }));
+      });
+
       // POST /api/generate → MiniMax text generation
       server.middlewares.use('/api/generate', async (req, res, next) => {
         if (req.method !== 'POST') return next();
