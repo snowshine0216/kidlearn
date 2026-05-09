@@ -1,184 +1,133 @@
-import { useState, useEffect, useCallback } from 'react';
-import { applyMasteryResult } from '../lib/quizLogic';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { DEFAULT_STREAK } from '../lib/storage/cardModel';
+import { createStorageAdapter } from '../lib/storage/storageAdapter';
 
-const DECK_KEY = 'starcards_deck';
-const STREAK_KEY = 'starcards_streak';
-
-/**
- * Forward-compatible card migration.
- * Adds schemaVersion + v2 field stubs so future migrations don't break old records.
- */
-function migrateCard(card) {
-  const base = {
-    schemaVersion: 1,
-    knewIt: null,        // boolean | null — set when child taps self-report
-    reviewedAt: null,    // timestamp | null — set when self-report is tapped
-    // v2 stubs (populated by quiz mode)
-    mastery: null,
-    reviewCount: null,
-    lastReviewedAt: null,
-    nextReviewAt: null,  // timestamp when card is due for spaced-repetition review
-    needsPractice: false, // true when card was answered wrong in last quiz session
-    quizHints: null,     // { [type]: QuizHint } — cached per quiz type
-    ...card,             // existing fields override defaults
-  };
-
-  if ((base.schemaVersion ?? 1) < 2) {
-    return {
-      ...base,
-      schemaVersion: 2,
-      ...(base.quizDisabled === true ? { quizDisabled: false, needsPractice: true } : {}),
-    };
+const applyResult = ({ result, setDeck, setStreak, showToast }) => {
+  if (!result) return false;
+  if (result.error) {
+    showToast?.(result.error);
+    return false;
   }
-
-  return base;
-}
-
-function loadDeck() {
-  try {
-    const raw = localStorage.getItem(DECK_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw).map(migrateCard);
-  } catch {
-    return [];
-  }
-}
-
-function saveDeck(deck) {
-  try {
-    localStorage.setItem(DECK_KEY, JSON.stringify(deck));
-  } catch (e) {
-    if (e.name === 'QuotaExceededError') {
-      throw new Error('Deck is full — delete some cards to save more');
-    }
-    throw e;
-  }
-}
-
-function loadStreak() {
-  try {
-    const raw = localStorage.getItem(STREAK_KEY);
-    return raw ? JSON.parse(raw) : { count: 0, lastDate: null };
-  } catch {
-    return { count: 0, lastDate: null };
-  }
-}
-
-/**
- * Update streak on any card interaction (card load counts as a study event).
- * Logic: same day = no change, yesterday = +1, older = reset to 1.
- */
-function updateStreak() {
-  // Use local date (not UTC) so Chinese users (UTC+8) see the correct day
-  const today = new Date().toLocaleDateString('sv'); // YYYY-MM-DD in local TZ
-  const streak = loadStreak();
-
-  if (streak.lastDate === today) return streak;
-
-  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('sv');
-  const newStreak = {
-    count: streak.lastDate === yesterday ? streak.count + 1 : 1,
-    lastDate: today,
-  };
-  localStorage.setItem(STREAK_KEY, JSON.stringify(newStreak));
-  return newStreak;
-}
+  if (result.deck) setDeck(result.deck);
+  if (result.streak) setStreak(result.streak);
+  return true;
+};
 
 export function useDeck(showToast) {
-  const [deck, setDeck] = useState(loadDeck);
-  const [streak, setStreak] = useState(loadStreak);
+  const adapterRef = useRef(null);
+  const [deck, setDeck] = useState([]);
+  const [streak, setStreak] = useState(DEFAULT_STREAK);
+  const [storageReady, setStorageReady] = useState(false);
 
-  // Reload deck if another tab changes localStorage
   useEffect(() => {
-    const handler = (e) => {
-      if (e.key === DECK_KEY) setDeck(loadDeck());
-      if (e.key === STREAK_KEY) setStreak(loadStreak());
+    let active = true;
+
+    const load = async () => {
+      const adapter = await createStorageAdapter();
+      const state = await adapter.load();
+      if (!active) return;
+      adapterRef.current = adapter;
+      setDeck(state.deck);
+      setStreak(state.streak);
+      setStorageReady(true);
     };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+
+    load().catch((error) => {
+      if (!active) return;
+      showToast?.(error.message);
+      setStorageReady(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [showToast]);
+
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (!adapterRef.current || adapterRef.current.kind !== 'localStorage') return;
+      if (event.key !== 'starcards_deck' && event.key !== 'starcards_streak') return;
+      adapterRef.current.refresh().then((state) => {
+        setDeck(state.deck);
+        setStreak(state.streak);
+      });
+    };
+
+    const onFocus = () => {
+      if (!adapterRef.current || adapterRef.current.kind !== 'sqlite') return;
+      adapterRef.current.refresh().then((state) => {
+        setDeck(state.deck);
+        setStreak(state.streak);
+      }).catch(() => {});
+    };
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []);
 
+  const withAdapter = useCallback(
+    async (operation) => {
+      if (!adapterRef.current) {
+        showToast?.('Storage is still loading');
+        return false;
+      }
+      const result = await operation(adapterRef.current);
+      return applyResult({ result, setDeck, setStreak, showToast });
+    },
+    [showToast]
+  );
+
   const addCard = useCallback(
-    (card) => {
-      if (deck.length >= 500) {
-        showToast?.('Your deck has 500+ cards! Consider deleting some.');
+    async (card) => {
+      if (!adapterRef.current) {
+        showToast?.('Storage is still loading');
         return false;
       }
-      const newCard = migrateCard({
-        ...card,
-        id: crypto.randomUUID(),
-        style: 'illustrated',
-        savedAt: Date.now(),
-      });
-      const next = [newCard, ...deck];
-      try {
-        saveDeck(next);
-        setDeck(next);
-        return newCard;
-      } catch (e) {
-        showToast?.(e.message);
-        return false;
-      }
+      const result = await adapterRef.current.addCard(card, deck);
+      const ok = applyResult({ result, setDeck, setStreak, showToast });
+      return ok ? result.card : false;
     },
     [deck, showToast]
   );
 
   const deleteCard = useCallback(
-    (id) => {
-      const next = deck.filter((c) => c.id !== id);
-      saveDeck(next);
-      setDeck(next);
-    },
-    [deck]
+    (id) => withAdapter((adapter) => adapter.deleteCard(id, deck)),
+    [deck, withAdapter]
   );
 
-  /**
-   * Record self-report ("I know it" / "Not yet") on a card.
-   */
   const reportCard = useCallback(
-    (id, knewIt) => {
-      const next = deck.map((c) =>
-        c.id === id ? { ...c, knewIt, reviewedAt: Date.now() } : c
-      );
-      saveDeck(next);
-      setDeck(next);
-      const newStreak = updateStreak();
-      setStreak(newStreak);
-    },
-    [deck]
+    (id, knewIt) => withAdapter((adapter) => adapter.reportCard(id, knewIt, deck)),
+    [deck, withAdapter]
   );
 
-  /**
-   * Bump streak — call when a card is reviewed.
-   */
-  const touchStreak = useCallback(() => {
-    const newStreak = updateStreak();
-    setStreak(newStreak);
-  }, []);
+  const touchStreak = useCallback(
+    () => withAdapter((adapter) => adapter.touchStreak()),
+    [withAdapter]
+  );
 
-  /**
-   * Update mastery fields after a quiz answer.
-   * Uses functional updater to avoid stale closure race conditions.
-   */
-  const updateCardMastery = useCallback((id, correct) => {
-    setDeck((prev) => {
-      const next = prev.map((c) => (c.id === id ? applyMasteryResult(c, correct) : c));
-      saveDeck(next);
-      return next;
-    });
-  }, []);
+  const updateCardMastery = useCallback(
+    (id, correct) => withAdapter((adapter) => adapter.updateCardMastery(id, correct, deck)),
+    [deck, withAdapter]
+  );
 
-  /**
-   * Patch arbitrary fields on a card (e.g. save back generated mnemonic or quizHints).
-   * Uses functional updater to avoid stale closure race conditions.
-   */
-  const patchCard = useCallback((id, fields) => {
-    setDeck((prev) => {
-      const next = prev.map((c) => (c.id === id ? { ...c, ...fields } : c));
-      saveDeck(next);
-      return next;
-    });
-  }, []);
+  const patchCard = useCallback(
+    (id, fields) => withAdapter((adapter) => adapter.patchCard(id, fields, deck)),
+    [deck, withAdapter]
+  );
 
-  return { deck, streak, addCard, deleteCard, reportCard, touchStreak, updateCardMastery, patchCard };
+  return {
+    deck,
+    streak,
+    storageReady,
+    addCard,
+    deleteCard,
+    reportCard,
+    touchStreak,
+    updateCardMastery,
+    patchCard,
+  };
 }

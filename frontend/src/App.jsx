@@ -40,8 +40,8 @@ export default function App() {
     setLang(next);
   }
 
-  function handleCardGenerated(card) {
-    const savedCard = addCard(card);
+  async function handleCardGenerated(card) {
+    const savedCard = await addCard(card);
     if (savedCard) {
       setCurrentCard(savedCard);
       setCurrentSubject(savedCard.subject ?? card.subject);

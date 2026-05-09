@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '../../App';
 
 // Mock heavy children to isolate handleDeleteCard behavior
@@ -9,6 +9,39 @@ vi.mock('../../lib/speech', () => ({
   speakCard: vi.fn(),
   speakCardFull: vi.fn(),
   speechSupported: true,
+}));
+
+// Mock storageAdapter so useDeck loads from localStorage without fetch
+vi.mock('../../lib/storage/storageAdapter', () => ({
+  createStorageAdapter: vi.fn(async () => {
+    const readDeck = () => {
+      try { return JSON.parse(localStorage.getItem('starcards_deck') || '[]'); } catch { return []; }
+    };
+    const readStreak = () => {
+      try { return JSON.parse(localStorage.getItem('starcards_streak') || 'null') ?? { count: 0, lastDate: null }; } catch { return { count: 0, lastDate: null }; }
+    };
+    return {
+      kind: 'localStorage',
+      load: async () => ({ deck: readDeck(), streak: readStreak() }),
+      refresh: async () => ({ deck: readDeck(), streak: readStreak() }),
+      addCard: vi.fn(async (card) => {
+        const deck = readDeck();
+        const saved = { ...card, id: crypto.randomUUID(), savedAt: Date.now() };
+        const next = [saved, ...deck];
+        localStorage.setItem('starcards_deck', JSON.stringify(next));
+        return { deck: next, card: saved };
+      }),
+      deleteCard: vi.fn(async (id) => {
+        const next = readDeck().filter((c) => c.id !== id);
+        localStorage.setItem('starcards_deck', JSON.stringify(next));
+        return { deck: next };
+      }),
+      reportCard: vi.fn(async () => ({ deck: readDeck(), streak: readStreak() })),
+      touchStreak: vi.fn(async () => ({ streak: readStreak() })),
+      updateCardMastery: vi.fn(async () => ({ deck: readDeck() })),
+      patchCard: vi.fn(async () => ({ deck: readDeck() })),
+    };
+  }),
 }));
 
 // Minimal localStorage stub
@@ -33,6 +66,7 @@ describe('App handleDeleteCard', () => {
     localStorage.setItem('starcards_deck', JSON.stringify([card]));
 
     render(<App />);
+    await waitFor(() => screen.getByLabelText('apple'));
 
     // Load the card — the chip load button has aria-label of the word
     fireEvent.click(screen.getByLabelText('apple'));
@@ -44,7 +78,7 @@ describe('App handleDeleteCard', () => {
     fireEvent.click(screen.getByLabelText('Delete apple'));
 
     // Card removed from list — Delete button gone
-    expect(screen.queryAllByLabelText('Delete apple')).toHaveLength(0);
+    await waitFor(() => expect(screen.queryAllByLabelText('Delete apple')).toHaveLength(0));
   });
 
   it('does not clear currentCard when a different card is deleted', async () => {
@@ -75,6 +109,7 @@ describe('App handleDeleteCard', () => {
     localStorage.setItem('starcards_deck', JSON.stringify([card2, card1]));
 
     render(<App />);
+    await waitFor(() => screen.getByLabelText('apple'));
 
     // Load card1 as currentCard
     fireEvent.click(screen.getByLabelText('apple'));
@@ -87,13 +122,13 @@ describe('App handleDeleteCard', () => {
     fireEvent.click(screen.getByLabelText('Delete rose'));
 
     // card2 gone from list, but card1's delete button still present (still in list + still currentCard)
-    expect(screen.queryAllByLabelText('Delete rose')).toHaveLength(0);
+    await waitFor(() => expect(screen.queryAllByLabelText('Delete rose')).toHaveLength(0));
     expect(screen.getByLabelText('Delete apple')).toBeTruthy();
   });
 });
 
 describe('App review badge', () => {
-  it('counts failed future-scheduled cards as needing review', () => {
+  it('counts failed future-scheduled cards as needing review', async () => {
     const card = {
       id: 'failed-1',
       word: 'pace',
@@ -116,6 +151,7 @@ describe('App review badge', () => {
     localStorage.setItem('starcards_deck', JSON.stringify([card]));
 
     render(<App />);
+    await waitFor(() => screen.getByText(/1 张需要复习/));
 
     expect(screen.getByText(/1 张需要复习/)).toBeTruthy();
   });
