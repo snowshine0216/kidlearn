@@ -183,7 +183,7 @@ function QuizProgress({ current, total, t }) {
 
 // ─── QuizQuestion ─────────────────────────────────────────────────────────────
 
-function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, onCorrectSelfReport, isLast, onBack, onToggleQuizDisabled, isQuizDisabled }) {
+function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSkipFeedback, onCorrectSelfReport, isLast, onBack, onSkipAndFail }) {
   const { card, type, hint, choices, sentenceWithBlank } = question;
   const memoryHint = card.quizHints?.[type] ?? null;
   const hasMemoryHint = hasHintContent(memoryHint);
@@ -516,13 +516,13 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
             {t.quizBack}
           </button>
         ) : <span />}
-        {onToggleQuizDisabled && (
+        {onSkipAndFail && selfReportPending === null && (
           <button
-            onClick={onToggleQuizDisabled}
+            onClick={onSkipAndFail}
             className="text-sm px-3 py-2 rounded-xl"
             style={{ color: 'var(--color-muted)' }}
           >
-            {isQuizDisabled ? t.quizEnable : t.quizDisable}
+            {t.quizDisable}
           </button>
         )}
       </div>
@@ -557,7 +557,7 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
 
 // ─── QuizFeedback ─────────────────────────────────────────────────────────────
 
-function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast, onBack, onToggleQuizDisabled, isQuizDisabled }) {
+function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast, onBack }) {
   const { card } = question;
   const [showMemory, setShowMemory] = useState(!correct);
   const hint = card.quizHints?.[question.type] ?? null;
@@ -639,15 +639,6 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
             {t.quizBack}
           </button>
         ) : <span />}
-        {onToggleQuizDisabled && (
-          <button
-            onClick={onToggleQuizDisabled}
-            className="text-sm px-3 py-2 rounded-xl"
-            style={{ color: 'var(--color-muted)' }}
-          >
-            {isQuizDisabled ? t.quizEnable : t.quizDisable}
-          </button>
-        )}
       </div>
 
       <button
@@ -889,16 +880,16 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
     setPhase('question');
   }
 
-  function handleExcludeCard() {
+  function handleSkipAndFail() {
     const q = questions[currentIdx];
-    onPatchCard(q.card.id, { quizDisabled: true });
-    if (phase === 'question') {
-      if (isLast) {
-        setPhase('summary');
-      } else {
-        setCurrentIdx(i => i + 1);
-        setPhase('question');
-      }
+    setHistory(prev => [...prev, captureSnapshot(q)]);
+    onUpdateMastery(q.card.id, false);
+    setResults(prev => [...prev, { cardId: q.card.id, card: q.card, type: q.type, correct: false }]);
+    if (isLast) {
+      setPhase('summary');
+    } else {
+      setCurrentIdx(i => i + 1);
+      setPhase('question');
     }
   }
 
@@ -1048,8 +1039,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
               onCorrectSelfReport={handleCorrectSelfReport}
               isLast={isLast}
               onBack={history.length > 0 ? handleBack : null}
-              onToggleQuizDisabled={handleExcludeCard}
-              isQuizDisabled={deck.find(c => c.id === currentQuestion.card.id)?.quizDisabled ?? false}
+              onSkipAndFail={handleSkipAndFail}
             />
           </>
         )}
@@ -1065,8 +1055,6 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
             onNext={handleNext}
             isLast={isLast}
             onBack={history.length > 0 ? handleBack : null}
-            onToggleQuizDisabled={handleExcludeCard}
-            isQuizDisabled={deck.find(c => c.id === currentQuestion.card.id)?.quizDisabled ?? false}
           />
         )}
 

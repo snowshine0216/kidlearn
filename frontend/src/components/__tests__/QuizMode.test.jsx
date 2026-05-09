@@ -764,15 +764,16 @@ describe('QuizMode — Back button', () => {
 
 // ─── Quiz-exclude toggle ──────────────────────────────────────────────────────
 
-describe('QuizMode — Quiz-exclude toggle', () => {
-  // pinyin: '' forces zh-pinyin type to fall back to 'reading' (self-report),
-  // so all questions show quizKnowIt/quizDontKnow buttons for consistent testing.
+// ─── In-quiz skip-as-fail ─────────────────────────────────────────────────────
+
+describe('QuizMode — In-quiz skip records wrong answer', () => {
+  // pinyin: '' forces zh-pinyin → fallback to 'reading' (self-report flow)
   const zhDeck = Array.from({ length: 8 }, (_, i) =>
     makeCard({ id: `zh-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
   );
 
-  async function startZhQuiz(deckOverride = zhDeck) {
-    render(<QuizMode {...DEFAULT_PROPS} deck={deckOverride} />);
+  async function startZhQuiz(deckOverride = zhDeck, extraProps = {}) {
+    render(<QuizMode {...DEFAULT_PROPS} deck={deckOverride} {...extraProps} />);
     await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
     await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
@@ -782,39 +783,38 @@ describe('QuizMode — Quiz-exclude toggle', () => {
     }, { timeout: 5000 });
   }
 
-  it('shows quiz-disable button on question screen', async () => {
+  it('renders the skip button on the question screen', async () => {
     await startZhQuiz();
     expect(screen.queryByText(t.quizDisable)).toBeTruthy();
   });
 
-  it('shows quiz-disable button on feedback screen after wrong answer', async () => {
+  it('does NOT render the skip button on the feedback screen', async () => {
     await startZhQuiz();
     await act(async () => { fireEvent.click(screen.getByText(t.quizDontKnow)); });
     await waitFor(() => {
       if (!screen.queryByText(t.quizGotIt)) throw new Error('not on feedback');
     }, { timeout: 3000 });
-    expect(screen.queryByText(t.quizDisable)).toBeTruthy();
+    // Wait for phase transition to complete and question component to unmount
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizDisable)).toBeFalsy();
+    }, { timeout: 1000 });
   });
 
-  it('clicking disable calls onPatchCard with quizDisabled: true', async () => {
+  it('clicking skip calls onUpdateMastery(cardId, false) and does NOT call onPatchCard with quizDisabled', async () => {
+    const onUpdateMastery = vi.fn();
     const onPatchCard = vi.fn();
-    render(<QuizMode {...DEFAULT_PROPS} deck={zhDeck} onPatchCard={onPatchCard} />);
-    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
-    await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
-    await waitFor(() => {
-      if (!screen.queryByText(t.quizDisable)) throw new Error('disable button not found');
-    }, { timeout: 5000 });
+    await startZhQuiz(zhDeck, { onUpdateMastery, onPatchCard });
 
     await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
 
-    expect(onPatchCard).toHaveBeenCalledWith(
+    expect(onUpdateMastery).toHaveBeenCalledWith(expect.any(String), false);
+    expect(onPatchCard).not.toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ quizDisabled: true })
     );
   });
 
-  it('excluding current card on question phase advances to next question', async () => {
+  it('clicking skip on the question phase advances to the next question', async () => {
     await startZhQuiz();
     const progressBefore = screen.queryByText(/question 1 of/i)?.textContent;
     await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
@@ -824,20 +824,17 @@ describe('QuizMode — Quiz-exclude toggle', () => {
     }, { timeout: 3000 });
   });
 
-  it('excluding on last question goes to summary (not crash)', async () => {
-    // Build a 5-card deck, advance to last question, then exclude
-    // pinyin: '' forces zh-pinyin fallback to 'reading' so all Qs show knowIt/dontKnow
+  it('clicking skip on the last question goes to summary', async () => {
     const smallDeck = Array.from({ length: 5 }, (_, i) =>
       makeCard({ id: `s-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
     );
     render(<QuizMode {...DEFAULT_PROPS} deck={smallDeck} />);
     await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
-    // Set count to 5
     await act(async () => { fireEvent.click(screen.getByText('5')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
     await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
 
-    // Answer 4 questions correctly (advance to Q5)
+    // Answer 4 questions correctly to reach Q5
     for (let i = 0; i < 4; i++) {
       await waitFor(() => {
         const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
@@ -846,22 +843,46 @@ describe('QuizMode — Quiz-exclude toggle', () => {
       const beforeProg = screen.queryByText(/question \d+ of/i)?.textContent;
       await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
       await waitFor(() => {
-        const summary = screen.queryByText(t.quizSummaryTitle);
-        if (summary) return;
+        if (screen.queryByText(t.quizSummaryTitle)) return;
         const newProg = screen.queryByText(/question \d+ of/i)?.textContent;
         if (!newProg || newProg === beforeProg) throw new Error('not advanced');
       }, { timeout: 5000 });
     }
 
-    // Should now be on Q5 — exclude it
     await waitFor(() => {
-      if (!screen.queryByText(t.quizDisable)) throw new Error('no disable button on last Q');
+      if (!screen.queryByText(t.quizDisable)) throw new Error('no skip button on last Q');
     }, { timeout: 3000 });
     await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
 
-    // Should go to summary, not crash
     await waitFor(() => {
       expect(screen.queryByText(t.quizSummaryTitle)).toBeTruthy();
     }, { timeout: 3000 });
+  }, 30000);
+
+  it('skipping records a wrong result so the card appears in weakCards on summary', async () => {
+    const smallDeck = Array.from({ length: 2 }, (_, i) =>
+      makeCard({ id: `s-${i}`, word: `word${i}`, subject: 'chinese', pinyin: '' })
+    );
+    render(<QuizMode {...DEFAULT_PROPS} deck={smallDeck} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /start/i })).toBeFalsy(), { timeout: 3000 });
+
+    // Skip Q1 (records wrong), answer Q2 correctly → summary should show 1 weak card
+    await waitFor(() => {
+      if (!screen.queryByText(t.quizDisable)) throw new Error('no skip button on Q1');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+
+    await waitFor(() => {
+      const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);
+      if (!ok) throw new Error('Q2 not ready');
+    }, { timeout: 5000 });
+    await act(async () => { fireEvent.click(screen.queryByText(t.quizKnowIt)); });
+
+    await waitFor(() => {
+      expect(screen.queryByText(t.quizSummaryTitle)).toBeTruthy();
+    }, { timeout: 5000 });
+    expect(screen.queryByText(t.quizWeakTitle)).toBeTruthy();
   }, 30000);
 });
