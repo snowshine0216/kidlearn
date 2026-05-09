@@ -628,9 +628,8 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
         </>
       )}
 
-      {/* Back + exclude row */}
-      <div className="flex justify-between items-center mt-2">
-        {onBack ? (
+      {onBack && (
+        <div className="flex justify-between items-center mt-2">
           <button
             onClick={onBack}
             className="text-sm font-semibold px-3 py-2 rounded-xl"
@@ -638,8 +637,8 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
           >
             {t.quizBack}
           </button>
-        ) : <span />}
-      </div>
+        </div>
+      )}
 
       <button
         onClick={onNext}
