@@ -9,7 +9,7 @@ const STREAK_KEY = 'starcards_streak';
  * Adds schemaVersion + v2 field stubs so future migrations don't break old records.
  */
 function migrateCard(card) {
-  return {
+  const base = {
     schemaVersion: 1,
     knewIt: null,        // boolean | null — set when child taps self-report
     reviewedAt: null,    // timestamp | null — set when self-report is tapped
@@ -22,6 +22,16 @@ function migrateCard(card) {
     quizHints: null,     // { [type]: QuizHint } — cached per quiz type
     ...card,             // existing fields override defaults
   };
+
+  if ((base.schemaVersion ?? 1) < 2) {
+    return {
+      ...base,
+      schemaVersion: 2,
+      ...(base.quizDisabled === true ? { quizDisabled: false, needsPractice: true } : {}),
+    };
+  }
+
+  return base;
 }
 
 function loadDeck() {
