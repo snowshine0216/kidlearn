@@ -522,7 +522,7 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
             className="text-sm px-3 py-2 rounded-xl"
             style={{ color: 'var(--color-muted)' }}
           >
-            {t.quizSkip}
+            {t.quizSkipFail}
           </button>
         )}
       </div>
