@@ -147,6 +147,27 @@ describe('QuizMode — Lobby', () => {
     }, { timeout: 3000 });
   });
 
+  it('orders review-eligible cards first when starting (failed/due before future)', async () => {
+    const now = Date.now();
+    // pinyin: '' forces zh-pinyin → fallback to 'reading' so the first question shows quizKnowIt/quizDontKnow
+    const deck = [
+      makeCard({ id: 'future-1', subject: 'chinese', word: 'future1', chinese: '未来1', pinyin: '', mastery: 5, nextReviewAt: now + 7 * 86400000, needsPractice: false }),
+      makeCard({ id: 'failed-1', subject: 'chinese', word: 'failed1', chinese: '失败1', pinyin: '', mastery: 3, nextReviewAt: now + 7 * 86400000, needsPractice: true }),
+      makeCard({ id: 'future-2', subject: 'chinese', word: 'future2', chinese: '未来2', pinyin: '', mastery: 5, nextReviewAt: now + 7 * 86400000, needsPractice: false }),
+    ];
+
+    render(<QuizMode {...DEFAULT_PROPS} deck={deck} />);
+    await act(async () => { fireEvent.click(screen.getByText(/chinese/i)); });
+    await act(async () => { fireEvent.click(screen.getByText('All')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /start/i })); });
+
+    // First question should be the failed card (eligible, comes before future-scheduled cards)
+    await waitFor(() => {
+      expect(screen.getByText(/question 1 of 3/i)).toBeTruthy();
+      expect(screen.getByText('失败1')).toBeTruthy();
+    }, { timeout: 3000 });
+  });
+
   it('renders a Start button', () => {
     render(<QuizMode {...DEFAULT_PROPS} />);
     expect(screen.getByRole('button', { name: /start/i })).toBeTruthy();

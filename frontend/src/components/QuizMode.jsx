@@ -35,6 +35,7 @@ function QuizLobby({ t, deck, onStart, onClose }) {
   const [countdownInterval, setCountdownInterval] = useState(30);
   const [loading, setLoading] = useState(false);
   const inFlightRef = useRef(false);
+  const nowRef = useRef(Date.now());
 
   const subjectDeck = getQuizCardsForSubject(deck, subject);
   const availableCount = subjectDeck.length;
@@ -51,7 +52,7 @@ function QuizLobby({ t, deck, onStart, onClose }) {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setLoading(true);
-    await onStart({ subject, count, showCountdown, countdownInterval });
+    await onStart({ subject, count, showCountdown, countdownInterval, now: nowRef.current });
     inFlightRef.current = false;
     setLoading(false);
   }
@@ -804,10 +805,10 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   const currentQuestion = questions[currentIdx] ?? null;
   const isLast = currentIdx === questions.length - 1;
 
-  async function handleStart({ subject, count, showCountdown, countdownInterval }) {
+  async function handleStart({ subject, count, showCountdown, countdownInterval, now }) {
     setQuizSettings({ showCountdown, countdownInterval });
     const modes = subject === 'english' ? EN_MODES : ZH_MODES;
-    const selected = selectPracticeCards(deck, subject, count);
+    const selected = selectPracticeCards(deck, subject, count, now);
     const built = buildQuestions(selected, deck, modes);
     if (built.length === 0) return; // guard: no selected cards at start time
     setQuestions(built);
