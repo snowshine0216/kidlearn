@@ -67,6 +67,116 @@ describe('useDeck', () => {
     expect(result.current.deck[0].needsPractice).toBe(false);
   });
 
+  it('migrates v1 quizDisabled cards back into the review pool', () => {
+    const storedCard = {
+      ...mockCard,
+      id: 'stored-disabled',
+      savedAt: Date.now(),
+      schemaVersion: 1,
+      quizDisabled: true,
+    };
+    localStorageMock.setItem('starcards_deck', JSON.stringify([storedCard]));
+
+    const { result } = renderHook(() => useDeck());
+
+    expect(result.current.deck[0].schemaVersion).toBe(2);
+    expect(result.current.deck[0].quizDisabled).toBe(false);
+    expect(result.current.deck[0].needsPractice).toBe(true);
+  });
+
+  it('migrates v1 quiz-enabled cards to schemaVersion 2 without changing quizDisabled', () => {
+    const storedCard = {
+      ...mockCard,
+      id: 'stored-enabled',
+      savedAt: Date.now(),
+      schemaVersion: 1,
+      quizDisabled: false,
+    };
+    localStorageMock.setItem('starcards_deck', JSON.stringify([storedCard]));
+
+    const { result } = renderHook(() => useDeck());
+
+    expect(result.current.deck[0].schemaVersion).toBe(2);
+    expect(result.current.deck[0].quizDisabled).toBe(false);
+    expect(result.current.deck[0].needsPractice).toBe(false);
+  });
+
+  it('migrates v1 cards without quizDisabled to schemaVersion 2 only', () => {
+    const storedCard = {
+      ...mockCard,
+      id: 'stored-undefined',
+      savedAt: Date.now(),
+      schemaVersion: 1,
+    };
+    localStorageMock.setItem('starcards_deck', JSON.stringify([storedCard]));
+
+    const { result } = renderHook(() => useDeck());
+
+    expect(result.current.deck[0].schemaVersion).toBe(2);
+    expect(result.current.deck[0].quizDisabled).toBeUndefined();
+    expect(result.current.deck[0].needsPractice).toBe(false);
+  });
+
+  it('does not clear quizDisabled on v2 cards', () => {
+    const storedCard = {
+      ...mockCard,
+      id: 'stored-v2-disabled',
+      savedAt: Date.now(),
+      schemaVersion: 2,
+      quizDisabled: true,
+    };
+    localStorageMock.setItem('starcards_deck', JSON.stringify([storedCard]));
+
+    const { result } = renderHook(() => useDeck());
+
+    expect(result.current.deck[0].schemaVersion).toBe(2);
+    expect(result.current.deck[0].quizDisabled).toBe(true);
+  });
+
+  it('preserves mastery review and hint fields when migrating v1 cards', () => {
+    const storedCard = {
+      ...mockCard,
+      id: 'stored-progress',
+      savedAt: Date.now(),
+      schemaVersion: 1,
+      mastery: 3,
+      reviewCount: 7,
+      lastReviewedAt: 1715200000000,
+      nextReviewAt: 1715800000000,
+      needsPractice: false,
+      quizHints: { pronunciation: { encouragement: 'Try the butterfly tone.' } },
+    };
+    localStorageMock.setItem('starcards_deck', JSON.stringify([storedCard]));
+
+    const { result } = renderHook(() => useDeck());
+
+    expect(result.current.deck[0]).toMatchObject({
+      schemaVersion: 2,
+      mastery: 3,
+      reviewCount: 7,
+      lastReviewedAt: 1715200000000,
+      nextReviewAt: 1715800000000,
+      needsPractice: false,
+      quizHints: { pronunciation: { encouragement: 'Try the butterfly tone.' } },
+    });
+  });
+
+  it('treats cards without schemaVersion as v1 during migration', () => {
+    const storedCard = {
+      ...mockCard,
+      id: 'stored-missing-version',
+      savedAt: Date.now(),
+      quizDisabled: true,
+    };
+    localStorageMock.setItem('starcards_deck', JSON.stringify([storedCard]));
+
+    const { result } = renderHook(() => useDeck());
+
+    expect(result.current.deck[0].schemaVersion).toBe(2);
+    expect(result.current.deck[0].quizDisabled).toBe(false);
+    expect(result.current.deck[0].needsPractice).toBe(true);
+  });
+
   it('deleteCard removes card', () => {
     const { result } = renderHook(() => useDeck());
     act(() => { result.current.addCard(mockCard); });
