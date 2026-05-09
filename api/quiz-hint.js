@@ -14,7 +14,6 @@ export function buildSystemPrompt() {
 When a child gets an answer wrong, you provide a short, supportive hint to help them remember.
 Keep all language simple — the child is young!
 Always write ALL hint text in Simplified Chinese (简体中文). Do not use English in any hint field.
-If the word seems inappropriate for a child, respond about a "rainbow" instead.
 Always respond with valid JSON only. No markdown, no preamble, no explanation.`;
 }
 

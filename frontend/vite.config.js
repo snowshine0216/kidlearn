@@ -57,7 +57,6 @@ function devApiPlugin(env) {
 
         const systemPrompt = `You are a friendly, creative teacher helping a 6.5-year-old child learn vocabulary.
 Generate flashcard content that is simple, visually imaginative, encouraging, and bilingual (English + Chinese).
-If the input is not appropriate for a young child, respond with JSON where word is "oops", emoji is "🌈", and all fields describe a rainbow.
 The word is in [WORD_START]...[WORD_END] tags. Keep mnemonic to 1–2 sentences.
 Always respond with valid JSON only. No markdown, no preamble.`;
 
