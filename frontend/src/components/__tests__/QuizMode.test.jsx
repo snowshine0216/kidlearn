@@ -785,7 +785,7 @@ describe('QuizMode — In-quiz skip records wrong answer', () => {
 
   it('renders the skip button on the question screen', async () => {
     await startZhQuiz();
-    expect(screen.queryByText(t.quizDisable)).toBeTruthy();
+    expect(screen.queryByText(t.quizSkip)).toBeTruthy();
   });
 
   it('does NOT render the skip button on the feedback screen', async () => {
@@ -796,7 +796,7 @@ describe('QuizMode — In-quiz skip records wrong answer', () => {
     }, { timeout: 3000 });
     // Wait for phase transition to complete and question component to unmount
     await waitFor(() => {
-      expect(screen.queryByText(t.quizDisable)).toBeFalsy();
+      expect(screen.queryByText(t.quizSkip)).toBeFalsy();
     }, { timeout: 1000 });
   });
 
@@ -805,7 +805,7 @@ describe('QuizMode — In-quiz skip records wrong answer', () => {
     const onPatchCard = vi.fn();
     await startZhQuiz(zhDeck, { onUpdateMastery, onPatchCard });
 
-    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizSkip)); });
 
     expect(onUpdateMastery).toHaveBeenCalledWith(expect.any(String), false);
     expect(onPatchCard).not.toHaveBeenCalledWith(
@@ -817,7 +817,7 @@ describe('QuizMode — In-quiz skip records wrong answer', () => {
   it('clicking skip on the question phase advances to the next question', async () => {
     await startZhQuiz();
     const progressBefore = screen.queryByText(/question 1 of/i)?.textContent;
-    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizSkip)); });
     await waitFor(() => {
       const newProg = screen.queryByText(/question \d+ of/i)?.textContent;
       if (!newProg || newProg === progressBefore) throw new Error('not advanced');
@@ -850,9 +850,9 @@ describe('QuizMode — In-quiz skip records wrong answer', () => {
     }
 
     await waitFor(() => {
-      if (!screen.queryByText(t.quizDisable)) throw new Error('no skip button on last Q');
+      if (!screen.queryByText(t.quizSkip)) throw new Error('no skip button on last Q');
     }, { timeout: 3000 });
-    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizSkip)); });
 
     await waitFor(() => {
       expect(screen.queryByText(t.quizSummaryTitle)).toBeTruthy();
@@ -870,9 +870,9 @@ describe('QuizMode — In-quiz skip records wrong answer', () => {
 
     // Skip Q1 (records wrong), answer Q2 correctly → summary should show 1 weak card
     await waitFor(() => {
-      if (!screen.queryByText(t.quizDisable)) throw new Error('no skip button on Q1');
+      if (!screen.queryByText(t.quizSkip)) throw new Error('no skip button on Q1');
     }, { timeout: 5000 });
-    await act(async () => { fireEvent.click(screen.getByText(t.quizDisable)); });
+    await act(async () => { fireEvent.click(screen.getByText(t.quizSkip)); });
 
     await waitFor(() => {
       const ok = screen.queryByText(t.quizKnowIt) || screen.queryByText(t.quizDontKnow);

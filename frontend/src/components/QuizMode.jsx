@@ -522,7 +522,7 @@ function QuizQuestion({ question, t, lang, onAnswer, hintLoading, settings, onSk
             className="text-sm px-3 py-2 rounded-xl"
             style={{ color: 'var(--color-muted)' }}
           >
-            {t.quizDisable}
+            {t.quizSkip}
           </button>
         )}
       </div>
@@ -735,6 +735,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   const [hintLoadingSet, setHintLoadingSet] = useState(new Set());
   const [quizSettings, setQuizSettings] = useState({ showCountdown: false, countdownInterval: 30 });
   const mountedRef = useRef(true);
+  const skipInFlightRef = useRef(false);
 
   useEffect(() => {
     return () => { mountedRef.current = false; };
@@ -880,6 +881,8 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   }
 
   function handleSkipAndFail() {
+    if (skipInFlightRef.current) return;
+    skipInFlightRef.current = true;
     const q = questions[currentIdx];
     setHistory(prev => [...prev, captureSnapshot(q)]);
     onUpdateMastery(q.card.id, false);
@@ -890,6 +893,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
       setCurrentIdx(i => i + 1);
       setPhase('question');
     }
+    setTimeout(() => { skipInFlightRef.current = false; }, 0);
   }
 
   function handleAnswer(correct, _chosenId) {
