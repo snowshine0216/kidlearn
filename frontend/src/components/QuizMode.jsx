@@ -629,7 +629,7 @@ function QuizFeedback({ question, correct, t, lang, hintLoading, onNext, isLast,
       )}
 
       {onBack && (
-        <div className="flex justify-between items-center mt-2">
+        <div className="flex justify-start items-center mt-2">
           <button
             onClick={onBack}
             className="text-sm font-semibold px-3 py-2 rounded-xl"
@@ -881,6 +881,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
   }
 
   function handleSkipAndFail() {
+    // Guard against rapid double-click: two browser events can fire before React re-renders.
     if (skipInFlightRef.current) return;
     skipInFlightRef.current = true;
     const q = questions[currentIdx];
@@ -893,6 +894,7 @@ export default function QuizMode({ t, lang, deck, onClose, onUpdateMastery, onPa
       setCurrentIdx(i => i + 1);
       setPhase('question');
     }
+    // Reset after React's batch commits (next event-loop tick).
     setTimeout(() => { skipInFlightRef.current = false; }, 0);
   }
 
