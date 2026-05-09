@@ -98,10 +98,14 @@ export function resolveQuizCount(count, availableCount) {
   return Math.min(numeric, safeAvailable);
 }
 
-export function selectPracticeCards(deck, subject, count) {
-  const available = getQuizCardsForSubject(deck, subject);
-  const requested = resolveQuizCount(count, available.length);
-  return available.slice(0, requested);
+export function selectPracticeCards(deck, subject, count, now = Date.now()) {
+  const allEnabled = getQuizCardsForSubject(deck, subject);
+  const eligibleOrdered = selectQuizCards(deck, subject, 'all', now);
+  const eligibleIds = new Set(eligibleOrdered.map(c => c.id));
+  const rest = allEnabled.filter(c => !eligibleIds.has(c.id));
+  const ordered = [...eligibleOrdered, ...rest];
+  const requested = resolveQuizCount(count, ordered.length);
+  return ordered.slice(0, requested);
 }
 
 // ─── selectQuizCards ─────────────────────────────────────────────────────────
