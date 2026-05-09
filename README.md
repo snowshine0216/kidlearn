@@ -49,7 +49,7 @@ Each card costs roughly ¥0.01–0.02 — a family app will stay well under ¥5/
 
 ```bash
 cd frontend
-npm run test        # run all tests once (315 tests)
+npm run test        # run all tests once (335 tests)
 npm run test:watch  # watch mode
 ```
 
@@ -93,14 +93,14 @@ If you forgot to add the key during first deploy:
 
 ```json
 {
-  "rootDirectory": "frontend",
   "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "cd frontend && npm install"
 }
 ```
 
-This tells Vercel that the actual app lives in `frontend/`. The serverless functions in `frontend/api/` are automatically deployed as Vercel Functions — they handle `/api/generate` and `/api/speak` server-side.
+This tells Vercel to build the actual app from `frontend/`. The serverless functions in the top-level `api/` directory are automatically deployed as Vercel Functions — they handle `/api/generate`, `/api/quiz-hint`, and `/api/speak` server-side. During `npm run dev`, Vite mirrors those routes locally so quiz memory tips use the same handlers as production.
 
 ---
 
